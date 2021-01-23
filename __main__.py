@@ -55,6 +55,8 @@ class Window(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.decreaseRemainingTime)
 
+        self.player = QMediaPlayer()
+
     def start(self):
         self.start_button.setDisabled(True)
         self.pause_button.setDisabled(False)
@@ -101,6 +103,14 @@ class Window(QWidget):
         else:
             self.timeLabel.setText(str(hours) + QTime(0, minutes, seconds).toString(":mm:ss"))
 
+    def playSound(self, name: str):
+        """Play a file, relative to the current directory."""
+        fullpath = QDir.current().absoluteFilePath(name)
+        url = QUrl.fromLocalFile(fullpath)
+        content = QMediaContent(url)
+        self.player.setMedia(content)
+        self.player.play()
+
     def decreaseRemainingTime(self):
         # make sure that the interval is a second, because we could have continued the timer
         # with the leftover seconds when pausing...
@@ -115,6 +125,7 @@ class Window(QWidget):
                 self.timer.stop()
 
                 self.pause_button.setDisabled(True)
+                self.playSound("break.m4a")
             else:
                 self.total_time = self.break_time_spinbox.value() * 60
                 self.study_done = True
@@ -127,8 +138,7 @@ class Window(QWidget):
                         "hh:mm:ss") + " - finished studying for " + self.study_time_value.toString(
                         "hh:mm:ss") + ".")
 
-                # TODO: hack, make this properly
-                Popen(["mpv", "sound.m4a", "--no-resume-playback", "--loop=no", "--loop-playlist=no", "--keep-open=no"])
+                self.playSound("study.m4a")
 
 
 App = QApplication(sys.argv)
