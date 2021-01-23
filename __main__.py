@@ -68,6 +68,7 @@ class Window(QWidget):
 
         # the total time to study for (spinboxes are minutes)
         self.total_time = self.study_time_spinbox.value() * 60
+        self.total_start_time = self.study_time_spinbox.value()
 
         self.timer.stop()  # it could be running - we could be currently in a break
         self.timer.start(0)  # immediately show the current time
@@ -131,12 +132,9 @@ class Window(QWidget):
                 self.study_done = True
                 self.start_button.setDisabled(False)
 
-                # write the result to a log file!
-                # TODO: replace with actual trees :P
                 with open("trimer.log", "a") as f:
                     f.write(QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString(
-                        "hh:mm:ss") + " - finished studying for " + self.study_time_value.toString(
-                        "hh:mm:ss") + ".")
+                        "hh:mm:ss") + " - finished studying for " + str(self.total_start_time) + " minutes." + "\n")
 
                 self.playSound("study.m4a")
 
