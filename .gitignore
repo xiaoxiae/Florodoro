@@ -1,3 +1,10 @@
 .idea/
-sound.m4a
+
+# sounds (for now)
+*.m4a
+
+# app log
 trimer.log
+
+# svgs of generated plants
+*.svg
