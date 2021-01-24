@@ -39,10 +39,6 @@ class Tree(Drawable):
     maxAge = None
 
     def generate(self):
-        """Generate the parameters of the tree so it's ready to grow."""
-
-        # self.maxAge = 1  # TODO: remove, debug
-
         age_coefficient = (self.maxAge + 1) / 2
 
         # to somewhat randomize the width and the height of the tree stuff
@@ -201,11 +197,6 @@ class Window(QWidget):
         self.study_timer_frequency = 1 / 60 * 1000
 
         self.player = QMediaPlayer()
-
-        # TODO: debug, remove this
-        self.study_time_spinbox.setValue(1)
-        self.break_time_spinbox.setValue(180)
-        self.start()
 
     def start(self):
         """The function called after pressing the start button. Starts the timer, plant growth,..."""
