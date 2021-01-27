@@ -11,57 +11,67 @@ from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSp
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 
 
+def smoothen_curve(x: float):
+    """f(x) with a smoother beginning and end."""
+    # TODO: move to utilities?
+    return (sin((x - 1 / 2) * pi) + 1) / 2
+
+
 class Drawable(ABC):
     """Something that has a draw function that takes a painter to be painted. Also contains some convenience methods
     for drawing the thing and saving it to an SVG."""
 
     @abstractmethod
     def draw(self, painter: QPainter, width: int, height: int):
+        """Draw the drawable onto a painter, given its size."""
         pass
 
     def save(self, path: str, width: int, height: int):
-        """Save the drawable to the specified file, given a width and a height."""
+        """Save the drawable to the specified file, given its size."""
         generator = QSvgGenerator()
         generator.setFileName(path)
         generator.setSize(QSize(width, height))
         generator.setViewBox(QRect(0, 0, width, height))
+
         painter = QPainter(generator)
         self.draw(painter, width, height)
         painter.end()
 
-    def smoothen_curve(self, x: float):
-        """f(x) with a smoother beginning and end."""
-        return (sin((x - 1 / 2) * pi) + 1) / 2
+
+class Plant(ABC):
+    @abstractmethod
+    def generate(self):
+        """Generate the parameters necessary for displaying the plant grow."""
+        pass
 
 
-class Tree(Drawable):
+class Tree(Drawable, Plant):
+    """A simple tree class that all trees originate from."""
     age = 0
     maxAge = None
 
     def generate(self):
-        age_coefficient = (self.maxAge + 1) / 2
+        # so we don't go from 0 to 1, but from 0.5 to 1
+        self.age_coefficient = (self.maxAge + 1) / 2
 
         # to somewhat randomize the width and the height of the tree stuff
-        width_coefficient = uniform(0.9, 1.1)
-        height_coefficient = uniform(0.9, 1.1)
+        self.width_coefficient = uniform(0.9, 1.1)
+        self.height_coefficient = uniform(0.9, 1.1)
 
         # how many branches should it have? always at least one, larger ones have two
-        branch_count = round(uniform(1, 2 * age_coefficient))
+        branch_count = round(uniform(1, 2 * self.age_coefficient))
 
         # positions of branches up the tree, + their orientations (where they're turned towards)
-        self.branches = [(uniform(width_coefficient * 0.45, width_coefficient * 0.55),
+        self.branches = [(uniform(self.width_coefficient * 0.45, self.width_coefficient * 0.55),
                           (((i - 1 / 2) * 2) if branch_count == 2 else (-1 if random() < 0.5 else 1)) * acos(
                               uniform(0.4, 0.6))) for i in
                          range(branch_count)]
 
-        self.base_width = lambda width: width / 15 * width_coefficient * age_coefficient
-        self.base_height = lambda height: height / 1.7 * height_coefficient * age_coefficient
+        self.base_width = lambda width: width / 15 * self.width_coefficient * self.age_coefficient
+        self.base_height = lambda height: height / 1.7 * self.height_coefficient * self.age_coefficient
 
-        self.branch_width = lambda width: width / 18 * width_coefficient * age_coefficient
-        self.branch_height = lambda height: height / 2.7 * height_coefficient * age_coefficient
-
-        self.green_width = lambda width: width / 3 * width_coefficient * age_coefficient
-        self.green_height = lambda height: height / 1.2 * height_coefficient * age_coefficient
+        self.branch_width = lambda width: width / 18 * self.width_coefficient * self.age_coefficient
+        self.branch_height = lambda height: height / 2.7 * self.height_coefficient * self.age_coefficient
 
     def set_current_age(self, age: float):
         """Set the current age of the tree (normalized from 0 to 1). Changes the way it is drawn."""
@@ -72,6 +82,31 @@ class Tree(Drawable):
         self.maxAge = maxAge
         self.generate()
 
+    def _draw(self, painter: QPainter, width: int, height: int):
+        painter.setBrush(QBrush(QColor(77, 51, 0)))
+
+        # main branch
+        painter.drawPolygon(QPointF(-self.base_width(width) * smoothen_curve(self.age), 0),
+                            QPointF(self.base_width(width) * smoothen_curve(self.age), 0),
+                            QPointF(0, self.base_height(height) * smoothen_curve(self.age)))
+
+        # other branches
+        for h, rotation in self.branches:
+            painter.save()
+
+            # translate/rotate to the position from which the branches grow
+            painter.translate(0, self.base_height(height * h * smoothen_curve(self.age)))
+            painter.rotate(degrees(rotation))
+
+            # grow branches slower than the other parts
+            adjusted_age = self.age ** 2
+
+            painter.drawPolygon(QPointF(-self.branch_width(width) * smoothen_curve(adjusted_age) * (1 - h), 0),
+                                QPointF(self.branch_width(width) * smoothen_curve(adjusted_age) * (1 - h), 0),
+                                QPointF(0, self.branch_height(height) * smoothen_curve(adjusted_age) * (1 - h)))
+
+            painter.restore()
+
     def draw(self, painter: QPainter, width: int, height: int):
         if self.maxAge is None:
             return
@@ -79,36 +114,27 @@ class Tree(Drawable):
         painter.translate(width / 2, height)
         painter.scale(1, -1)
 
+        self._draw(painter, width, height)
+
+
+class GreenTree(Tree):
+
+    def generate(self):
+        super().generate()
+
+        self.green_width = lambda width: width / 3 * self.width_coefficient * self.age_coefficient
+        self.green_height = lambda height: height / 1.2 * self.height_coefficient * self.age_coefficient
+
+    def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(QColor(0, 119, 0)))
-        offset = self.base_height(height * 0.3 * self.smoothen_curve(self.age))
-        painter.drawPolygon(QPointF(-self.green_width(width) * self.smoothen_curve(self.age), offset),
-                            QPointF(self.green_width(width) * self.smoothen_curve(self.age), offset),
-                            QPointF(0, min(self.green_height(height) * self.smoothen_curve(self.age) + offset,
-                                           # TODO: min somewhere else!
+        offset = self.base_height(height * 0.3 * smoothen_curve(self.age))
+        painter.drawPolygon(QPointF(-self.green_width(width) * smoothen_curve(self.age), offset),
+                            QPointF(self.green_width(width) * smoothen_curve(self.age), offset),
+                            QPointF(0, min(self.green_height(height) * smoothen_curve(self.age) + offset,
                                            height * 0.95)))
 
-        painter.setBrush(QBrush(QColor(77, 51, 0)))
-
-        for h, rotation in self.branches:
-            painter.save()
-
-            # translate/rotate to the position from which the branches grow
-            painter.translate(0, self.base_height(height * h * self.smoothen_curve(self.age)))
-            painter.rotate(degrees(rotation))
-
-            # grow branches slower than the other parts
-            adjusted_age = self.age ** 2
-
-            painter.drawPolygon(QPointF(-self.branch_width(width) * self.smoothen_curve(adjusted_age) * (1 - h), 0),
-                                QPointF(self.branch_width(width) * self.smoothen_curve(adjusted_age) * (1 - h), 0),
-                                QPointF(0, self.branch_height(height) * self.smoothen_curve(adjusted_age) * (1 - h)))
-
-            painter.restore()
-
-        painter.drawPolygon(QPointF(-self.base_width(width) * self.smoothen_curve(self.age), 0),
-                            QPointF(self.base_width(width) * self.smoothen_curve(self.age), 0),
-                            QPointF(0, self.base_height(height) * self.smoothen_curve(self.age)))
+        super()._draw(painter, width, height)
 
 
 class Canvas(QWidget):
@@ -160,7 +186,7 @@ class Window(QWidget):
         self.timeLabel.setFont(font)
         self.timeLabel.setText(self.INITIAL_TEXT)
 
-        self.plant = Tree()
+        self.plant = GreenTree()
 
         self.canvas = Canvas(self.plant)
         self.canvas.hide()
