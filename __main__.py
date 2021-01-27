@@ -174,7 +174,9 @@ class Window(QWidget):
 
         self.INITIAL_TEXT = "Start!"
 
-        self.START_TEXT = "Start"
+        self.STUDY_TEXT = "Study"
+        self.BREAK_TEXT = "Break"
+
         self.PAUSE_TEXT = "Pause"
         self.CONTINUE_TEXT = "Continue"
 
@@ -205,13 +207,16 @@ class Window(QWidget):
         self.break_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_BREAK_TIME,
                                            singleStep=self.STEP)
 
-        self.start_button = QPushButton(self, text=self.START_TEXT, clicked=self.start)
-        self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.pause)
+        self.study_button = QPushButton(self, text=self.STUDY_TEXT, clicked=self.start)
+        self.break_button = QPushButton(self, text=self.BREAK_TEXT, clicked=self.start_break)
+
+        self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.toggle_pause)
         self.pause_button.setDisabled(True)
 
         h_layout.addWidget(self.study_time_spinbox)
         h_layout.addWidget(self.break_time_spinbox)
-        h_layout.addWidget(self.start_button)
+        h_layout.addWidget(self.study_button)
+        h_layout.addWidget(self.break_button)
         h_layout.addWidget(self.pause_button)
 
         v_layout.addLayout(h_layout)
@@ -221,41 +226,48 @@ class Window(QWidget):
         self.study_timer = QTimer(self)
         self.study_timer.timeout.connect(self.decrease_remaining_time)
         self.study_timer_frequency = 1 / 60 * 1000
+        self.study_timer.setInterval(int(self.study_timer_frequency))
 
         self.player = QMediaPlayer()
 
-    def start(self):
+    def start_break(self):
+        self.start(do_break=True)
+
+    def start(self, do_break=False):
         """The function called after pressing the start button. Starts the timer, plant growth,..."""
-        self.start_button.setDisabled(True)
+        self.study_button.setDisabled(not do_break)
+        self.break_button.setDisabled(True)
+
         self.pause_button.setDisabled(False)
         self.pause_button.setText(self.PAUSE_TEXT)
 
-        self.canvas.show()
-
         # set, whether we finished studying and are having a break
         # this is initially false, since we just started the session
-        self.study_done = False
+        self.study_done = do_break
 
         # the total time to study for (spinboxes are minutes)
-        self.leftover_time = self.study_time_spinbox.value() * 60
-        self.total_time = self.study_time_spinbox.value() * 60
+        self.leftover_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60
+        self.total_time = self.leftover_time
 
-        self.plant.change_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
+
+        # don't start showing canvas and growing the plant when we're not studying
+        if not do_break:
+            self.canvas.show()
+
+            self.plant.change_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
 
         self.study_timer.stop()  # it could be running - we could be currently in a break
-        self.study_timer.start(int(self.study_timer_frequency))
+        self.study_timer.start()
 
-    def pause(self):
-        # don't pause when we're having a break
-        if self.study_done:
-            return
-
+    def toggle_pause(self):
+        # stop the timer, if it's running
         if self.study_timer.isActive():
             self.study_timer.stop()
             self.pause_button.setText(self.CONTINUE_TEXT)
-        else:
-            self.study_timer.start(int(self.study_timer_frequency))
 
+        # if not, resume
+        else:
+            self.study_timer.start()
             self.pause_button.setText(self.PAUSE_TEXT)
 
     def update_time_label(self, time):
@@ -290,7 +302,9 @@ class Window(QWidget):
             if self.study_done:
                 self.study_timer.stop()
 
+                self.break_button.setDisabled(False)
                 self.pause_button.setDisabled(True)
+
                 self.play_sound("break.m4a")
 
                 self.timeLabel.setText(self.INITIAL_TEXT)
@@ -298,7 +312,8 @@ class Window(QWidget):
             else:
                 self.leftover_time = self.break_time_spinbox.value() * 60
                 self.study_done = True
-                self.start_button.setDisabled(False)
+
+                self.study_button.setDisabled(False)
 
                 with open("trimer.log", "a") as f:
                     name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString(
