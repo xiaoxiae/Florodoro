@@ -391,7 +391,7 @@ class Window(QWidget):
     def decrease_remaining_time(self):
         """Decrease the remaining time by the timer frequency. Updates clock/plant growth."""
         self.update_time_label(self.leftover_time)
-        self.leftover_time -= self.study_timer_frequency / 1  # 000
+        self.leftover_time -= self.study_timer_frequency / 1000
 
         if self.leftover_time <= 0:
             if self.study_done:
