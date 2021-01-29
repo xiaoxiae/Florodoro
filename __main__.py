@@ -8,7 +8,8 @@ from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, Q
 from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QMenuBar, QAction, QSizePolicy
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QMenuBar, QAction, QSizePolicy, \
+    QMessageBox
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 
 
@@ -254,13 +255,27 @@ class Window(QWidget):
         self.PAUSE_TEXT = "Pause"
         self.CONTINUE_TEXT = "Continue"
 
-        self.BREAK_COLOR = "#B37700"  # QColor(179,119,0)
+        self.BREAK_COLOR = "#B37700"
 
         self.menuBar = QMenuBar(self)
         self.options_menu = self.menuBar.addMenu('Options')
 
         self.sound_action = QAction("&Sound", self, checkable=True, checked=True)
         self.options_menu.addAction(self.sound_action)
+
+        self.menuBar.addAction(
+            QAction(
+                "&About",
+                self,
+                triggered=lambda: QMessageBox.information(
+                    self,
+                    "About",
+                    "This application was created by Tomáš Sláma. It is heavily inspired by the Android app Forest, "
+                    "but with all of the plants generated procedurally. It's <a href='https://github.com/xiaoxiae/Trimer'>open source</a> and licensed "
+                    "under MIT, so do as you please with the code and anything else related to the project.",
+                ),
+            )
+        )
 
         self.menuBar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Maximum)
 
