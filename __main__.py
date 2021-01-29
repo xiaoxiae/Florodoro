@@ -1,3 +1,4 @@
+import os
 import sys
 from abc import ABC, abstractmethod
 from math import sin, pi, acos, degrees
@@ -232,6 +233,11 @@ class Window(QWidget):
     def __init__(self):
         super().__init__()
 
+        os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+        self.SOUNDS_FOLDER = "sounds/"
+        self.PLANTS_FOLDER = "plants/"
+
         self.DEFAULT_STUDY_TIME = 45
         self.DEFAULT_BREAK_TIME = 15
 
@@ -252,8 +258,10 @@ class Window(QWidget):
 
         self.menuBar = QMenuBar(self)
         self.options_menu = self.menuBar.addMenu('Options')
-        self.music_action = QAction("&Music", self, checkable=True, checked=True)
-        self.options_menu.addAction(self.music_action)
+
+        self.sound_action = QAction("&Sound", self, checkable=True, checked=True)
+        self.options_menu.addAction(self.sound_action)
+
         self.menuBar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Maximum)
 
         main_vertical_layout = QVBoxLayout()
@@ -367,15 +375,18 @@ class Window(QWidget):
             self.main_label.setText(str(hours) + QTime(0, minutes, seconds).toString(":mm:ss"))
 
     def play_sound(self, name: str):
-        """Play a file, relative to the current directory."""
-        if not self.music_action.isChecked():
+        """Play a file from the sound directory. Extension is not included, will be added automatically."""
+        if not self.sound_action.isChecked():
             return
 
-        path = QDir.current().absoluteFilePath(name)
-        url = QUrl.fromLocalFile(path)
-        content = QMediaContent(url)
-        self.player.setMedia(content)
-        self.player.play()
+        for file in os.listdir(self.SOUNDS_FOLDER):
+            # if the file starts with the provided name and only contains an extension after, try to play it
+            if file.startswith(name) and file[len(name):][0] == ".":
+                path = QDir.current().absoluteFilePath(self.SOUNDS_FOLDER + file)
+                url = QUrl.fromLocalFile(path)
+                content = QMediaContent(url)
+                self.player.setMedia(content)
+                self.player.play()
 
     def decrease_remaining_time(self):
         """Decrease the remaining time by the timer frequency. Updates clock/plant growth."""
@@ -390,22 +401,25 @@ class Window(QWidget):
                 self.break_button.setDisabled(False)
                 self.pause_button.setDisabled(True)
 
-                self.play_sound("break.m4a")
+                self.play_sound("break_done")
 
                 self.main_label.setText(self.INITIAL_TEXT)
                 self.canvas.hide()
             else:
                 self.start(do_break=True)
 
-                with open("trimer.log", "a") as f:
-                    name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString(
-                        "hh:mm:ss")
+                name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString("hh:mm:ss")
 
-                    f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
+                # TODO: what to do with this?
+                # with open("trimer.log", "a") as f:
+                #    f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
 
-                    self.canvas.save(name + ".svg")
+                if not os.path.exists(self.PLANTS_FOLDER):
+                    os.mkdir(self.PLANTS_FOLDER)
 
-                self.play_sound("study.m4a")
+                self.canvas.save(self.PLANTS_FOLDER + name + ".svg")
+
+                self.play_sound("study_done")
         else:
             # if there is leftover time and we haven't finished studying, grow the plant
             if not self.study_done:
