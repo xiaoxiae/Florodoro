@@ -158,7 +158,7 @@ class OrangeTree(Tree):
             circle_on_branch_position = top_of_branch * self.branch_circles[i][1]
 
             r = ((width + height) / 2) * self.branch_circles[i][0] * smoothen_curve(self.get_adjusted_age()) * (
-                        1 - h) * self.age_coefficient
+                    1 - h) * self.age_coefficient
 
             painter.setBrush(QBrush(self.orange_color))
             painter.drawEllipse(QPointF(0, circle_on_branch_position), r, r)
@@ -171,7 +171,7 @@ class OrangeTree(Tree):
         # make the main ellipse slightly larger
         increase_size = 1.3
         r = ((width + height) / 2) * self.branch_circles[-1][0] * smoothen_curve(self.get_adjusted_age()) * (
-                    1 - h) * self.age_coefficient * increase_size
+                1 - h) * self.age_coefficient * increase_size
 
         painter.drawEllipse(QPointF(0, circle_on_branch_position), r, r)
 
@@ -232,7 +232,6 @@ class Canvas(QWidget):
         super(Canvas, self).__init__(parent)
         self.object = obj
         self.setFixedSize(300, 300)
-        self.setContentsMargins(20, 20, 20, 20)
 
     def save(self, path: str):
         """Save the drawable object to the specified file."""
@@ -283,6 +282,8 @@ class Window(QWidget):
         self.DEFAULT_BREAK_TIME = 15
 
         self.MAX_PLANT_AGE = 90  # maximum number of minutes to make the plant optimal in size
+
+        self.WIDGET_SPACING = 10
 
         self.MAX_TIME = 180
         self.STEP = 5
@@ -347,6 +348,7 @@ class Window(QWidget):
 
         main_vertical_layout = QVBoxLayout()
         main_vertical_layout.setContentsMargins(0, 0, 0, 0)
+        main_vertical_layout.setSpacing(0)
 
         main_vertical_layout.addWidget(self.menuBar)
 
@@ -357,18 +359,22 @@ class Window(QWidget):
 
         self.canvas = Canvas()
 
-        h_layout = QHBoxLayout()
-        h_layout.addWidget(self.main_label)
-        h_layout.addWidget(self.canvas)
+        main_horizontal_layout = QHBoxLayout()
+        main_horizontal_layout.setContentsMargins(self.WIDGET_SPACING, self.WIDGET_SPACING, self.WIDGET_SPACING,
+                                                  self.WIDGET_SPACING)
+        main_horizontal_layout.addWidget(self.main_label)
+        main_horizontal_layout.addWidget(self.canvas)
 
-        main_vertical_layout.addLayout(h_layout)
+        main_vertical_layout.addLayout(main_horizontal_layout)
 
-        h_layout = QHBoxLayout()
+        main_horizontal_layout = QHBoxLayout()
 
         self.study_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_STUDY_TIME,
                                            singleStep=self.STEP)
         self.break_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_BREAK_TIME,
                                            singleStep=self.STEP)
+
+        self.break_time_spinbox.setStyleSheet(f'color:{self.BREAK_COLOR};')
 
         self.study_button = QPushButton(self, text=self.STUDY_TEXT, clicked=self.start)
         self.break_button = QPushButton(self, text=self.BREAK_TEXT, clicked=self.start_break)
@@ -377,13 +383,13 @@ class Window(QWidget):
         self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.toggle_pause)
         self.pause_button.setDisabled(True)
 
-        h_layout.addWidget(self.study_time_spinbox)
-        h_layout.addWidget(self.break_time_spinbox)
-        h_layout.addWidget(self.study_button)
-        h_layout.addWidget(self.break_button)
-        h_layout.addWidget(self.pause_button)
+        main_horizontal_layout.addWidget(self.study_time_spinbox)
+        main_horizontal_layout.addWidget(self.break_time_spinbox)
+        main_horizontal_layout.addWidget(self.study_button)
+        main_horizontal_layout.addWidget(self.break_button)
+        main_horizontal_layout.addWidget(self.pause_button)
 
-        main_vertical_layout.addLayout(h_layout)
+        main_vertical_layout.addLayout(main_horizontal_layout)
 
         self.setLayout(main_vertical_layout)
 
@@ -479,7 +485,7 @@ class Window(QWidget):
         """Decrease the remaining time by the timer frequency. Updates clock/plant growth."""
         self.update_time_label(self.leftover_time)
 
-        self.leftover_time -= self.study_timer_frequency / ((1/3) if self.DEBUG else 1000)
+        self.leftover_time -= self.study_timer_frequency / ((1 / 3) if self.DEBUG else 1000)
 
         if self.leftover_time <= 0:
             if self.study_done:
