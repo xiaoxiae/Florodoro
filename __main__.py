@@ -315,7 +315,7 @@ class Window(QWidget):
                     self,
                     "About",
                     "This application was created by Tomáš Sláma. It is heavily inspired by the Android app Forest, "
-                    "but with all of the plants generated procedurally. It's <a href='https://github.com/xiaoxiae/Trimer'>open source</a> and licensed "
+                    "but with all of the plants generated procedurally. It's <a href='https://github.com/xiaoxiae/Florodoro'>open source</a> and licensed "
                     "under MIT, so do as you please with the code and anything else related to the project.",
                 ),
             )
@@ -505,8 +505,8 @@ class Window(QWidget):
                 name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString("hh:mm:ss")
 
                 if self.DEBUG:
-                    with open("trimer.log", "a") as f:
-                       f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
+                    with open("florodoro.log", "a") as f:
+                        f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
 
                 # if we're not growing a plant, don't save it
                 if not self.canvas.isHidden():
