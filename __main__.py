@@ -51,6 +51,7 @@ class Tree(Drawable, Plant):
     """A simple tree class that all trees originate from."""
     age = 0
     maxAge = None
+    brown_color = QColor(77, 51, 0)
 
     def generateBranches(self, count):
         # positions of branches up the tree, + their orientations (where they're turned towards)
@@ -92,7 +93,7 @@ class Tree(Drawable, Plant):
         return self.age ** 2
 
     def _draw(self, painter: QPainter, width: int, height: int):
-        painter.setBrush(QBrush(QColor(77, 51, 0)))
+        painter.setBrush(QBrush(self.brown_color))
 
         # main branch
         painter.drawPolygon(QPointF(-self.base_width(width) * smoothen_curve(self.age), 0),
@@ -125,6 +126,7 @@ class Tree(Drawable, Plant):
 
 
 class OrangeTree(Tree):
+    orange_color = QColor(243, 148, 30)
 
     def generate(self):
         super().generate()
@@ -135,13 +137,13 @@ class OrangeTree(Tree):
 
         # the size (percentage of width/height) + the position of the circle on the branch
         # the last one is the main ellipse
-        self.branch_circles = [(uniform(self.width_coefficient * 0.25, self.width_coefficient * 0.32),
-                                uniform(self.width_coefficient * 0.8, self.width_coefficient)) for _ in
+        self.branch_circles = [(uniform(self.width_coefficient * 0.30, self.width_coefficient * 0.37),
+                                uniform(self.width_coefficient * 0.9, self.width_coefficient)) for _ in
                                range(len(self.branches) + 1)]
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
-        painter.setBrush(QBrush(QColor(243, 148, 30)))
+        painter.setBrush(QBrush(self.orange_color))
 
         for i, branch in enumerate(self.branches):
             h, rotation = branch
@@ -154,16 +156,22 @@ class OrangeTree(Tree):
 
             top_of_branch = self.branch_height(height) * smoothen_curve(self.get_adjusted_age()) * (1 - h)
             circle_on_branch_position = top_of_branch * self.branch_circles[i][1]
-            r = ((width + height) / 2) * self.branch_circles[i][0] * smoothen_curve(self.get_adjusted_age()) * (1 - h)
 
-            painter.setBrush(QBrush(QColor(243, 148, 30)))
+            r = ((width + height) / 2) * self.branch_circles[i][0] * smoothen_curve(self.get_adjusted_age()) * (
+                        1 - h) * self.age_coefficient
+
+            painter.setBrush(QBrush(self.orange_color))
             painter.drawEllipse(QPointF(0, circle_on_branch_position), r, r)
 
             painter.restore()
 
         top_of_branch = self.base_height(height) * smoothen_curve(self.age)
         circle_on_branch_position = top_of_branch * self.branch_circles[-1][1]
-        r = ((width + height) / 2) * self.branch_circles[-1][0] * smoothen_curve(self.get_adjusted_age()) * (1 - h)
+
+        # make the main ellipse slightly larger
+        increase_size = 1.3
+        r = ((width + height) / 2) * self.branch_circles[-1][0] * smoothen_curve(self.get_adjusted_age()) * (
+                    1 - h) * self.age_coefficient * increase_size
 
         painter.drawEllipse(QPointF(0, circle_on_branch_position), r, r)
 
@@ -171,6 +179,7 @@ class OrangeTree(Tree):
 
 
 class GreenTree(Tree):
+    green_color = QColor(0, 119, 0)
 
     def generate(self):
         super().generate()
@@ -180,7 +189,8 @@ class GreenTree(Tree):
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
-        painter.setBrush(QBrush(QColor(0, 119, 0)))
+        painter.setBrush(QBrush(self.green_color))
+
         offset = self.base_height(height * 0.3 * smoothen_curve(self.age))
         painter.drawPolygon(QPointF(-self.green_width(width) * smoothen_curve(self.age), offset),
                             QPointF(self.green_width(width) * smoothen_curve(self.age), offset),
