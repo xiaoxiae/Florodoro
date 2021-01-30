@@ -1,15 +1,16 @@
 import os
 import sys
+import tempfile
 from abc import ABC, abstractmethod
 from math import sin, pi, acos, degrees
 from random import random, uniform, choice
 
 from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect
-from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor
+from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QMenuBar, QAction, QSizePolicy, \
-    QMessageBox
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
+    QMessageBox, QMenuBar
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 
 
@@ -55,7 +56,7 @@ class Tree(Drawable, Plant):
 
     def generateBranches(self, count):
         # positions of branches up the tree, + their orientations (where they're turned towards)
-        self.branches = [(uniform(self.width_coefficient * 0.45, self.width_coefficient * 0.55),
+        self.branches = [(uniform(self.deficit_coefficient * 0.45, self.deficit_coefficient * 0.55),
                           (((i - 1 / 2) * 2) if count == 2 else (-1 if random() < 0.5 else 1)) * acos(
                               uniform(0.4, 0.6))) for i in
                          range(count)]
@@ -64,26 +65,25 @@ class Tree(Drawable, Plant):
         # so we don't go from 0 to 1, but from 0.5 to 1
         self.age_coefficient = (self.maxAge + 1) / 2
 
-        # to somewhat randomize the width and the height of the tree stuff
-        self.width_coefficient = uniform(0.9, 1.1)
-        self.height_coefficient = uniform(0.9, 1.1)
+        # make the sizes somewhat random and organic
+        self.deficit_coefficient = uniform(0.9, 1)
 
         # generate somewhere between 1 and 2 branches
         self.generateBranches(round(uniform(1, 2 * self.age_coefficient)))
 
         # the width/height of the main branch
-        self.base_width = lambda width: width / 15 * self.width_coefficient * self.age_coefficient
-        self.base_height = lambda height: height / 1.7 * self.height_coefficient * self.age_coefficient
+        self.base_width = lambda width: width / 15 * self.deficit_coefficient * self.age_coefficient
+        self.base_height = lambda height: height / 1.7 * self.deficit_coefficient * self.age_coefficient
 
         # the width/height of the other branches
-        self.branch_width = lambda width: width / 18 * self.width_coefficient * self.age_coefficient
-        self.branch_height = lambda height: height / 2.7 * self.height_coefficient * self.age_coefficient
+        self.branch_width = lambda width: width / 18 * self.deficit_coefficient * self.age_coefficient
+        self.branch_height = lambda height: height / 2.7 * self.deficit_coefficient * self.age_coefficient
 
     def set_current_age(self, age: float):
         """Set the current age of the tree (normalized from 0 to 1). Changes the way it is drawn."""
         self.age = age
 
-    def change_max_age(self, maxAge: float):
+    def set_max_age(self, maxAge: float):
         """Change the tree's max age, re-generating it in the process."""
         self.maxAge = maxAge
         self.generate()
@@ -137,8 +137,8 @@ class OrangeTree(Tree):
 
         # the size (percentage of width/height) + the position of the circle on the branch
         # the last one is the main ellipse
-        self.branch_circles = [(uniform(self.width_coefficient * 0.30, self.width_coefficient * 0.37),
-                                uniform(self.width_coefficient * 0.9, self.width_coefficient)) for _ in
+        self.branch_circles = [(uniform(self.deficit_coefficient * 0.30, self.deficit_coefficient * 0.37),
+                                uniform(self.deficit_coefficient * 0.9, self.deficit_coefficient)) for _ in
                                range(len(self.branches) + 1)]
 
     def _draw(self, painter: QPainter, width: int, height: int):
@@ -184,18 +184,43 @@ class GreenTree(Tree):
     def generate(self):
         super().generate()
 
-        self.green_width = lambda width: width / 3 * self.width_coefficient * self.age_coefficient
-        self.green_height = lambda height: height / 1.2 * self.height_coefficient * self.age_coefficient
+        self.green_width = lambda width: width / 3.2 * self.deficit_coefficient * self.age_coefficient
+        self.green_height = lambda height: height / 1.5 * self.deficit_coefficient * self.age_coefficient
+
+        self.offset = lambda height: min(height * .95, self.base_height(height * 0.3 * smoothen_curve(self.age)))
+
+    def _draw(self, painter: QPainter, width: int, height: int):
+        painter.setPen(QPen(Qt.NoPen))
+        painter.setBrush(QBrush(self.green_color))
+
+        painter.drawPolygon(QPointF(-self.green_width(width) * smoothen_curve(self.age), self.offset(height)),
+                            QPointF(self.green_width(width) * smoothen_curve(self.age), self.offset(height)),
+                            QPointF(0, self.green_height(height) * smoothen_curve(self.age) + self.offset(height)))
+
+        super()._draw(painter, width, height)
+
+
+class DoubleGreenTree(GreenTree):
+
+    def generate(self):
+        super().generate()
+
+        self.second_green_width = lambda width: width / 3.5 * self.deficit_coefficient * self.age_coefficient
+        self.second_green_height = lambda height: height / 2.4 * self.deficit_coefficient * self.age_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(self.green_color))
 
         offset = self.base_height(height * 0.3 * smoothen_curve(self.age))
-        painter.drawPolygon(QPointF(-self.green_width(width) * smoothen_curve(self.age), offset),
-                            QPointF(self.green_width(width) * smoothen_curve(self.age), offset),
-                            QPointF(0, min(self.green_height(height) * smoothen_curve(self.age) + offset,
-                                           height * 0.95)))
+        second_offset = (self.green_height(height) - self.second_green_height(height)) * smoothen_curve(self.age)
+
+        painter.drawPolygon(
+            QPointF(-self.second_green_width(width) * smoothen_curve(self.age) ** 2, offset + second_offset),
+            QPointF(self.second_green_width(width) * smoothen_curve(self.age) ** 2, offset + second_offset),
+            QPointF(0, min(
+                self.second_green_height(height) * smoothen_curve(self.age) + offset + second_offset,
+                height * 0.95)))
 
         super()._draw(painter, width, height)
 
@@ -249,6 +274,11 @@ class Window(QWidget):
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
 
+        self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree]
+
+        # TODO: command line arguments?
+        self.DEBUG = False
+
         self.DEFAULT_STUDY_TIME = 45
         self.DEFAULT_BREAK_TIME = 15
 
@@ -273,6 +303,9 @@ class Window(QWidget):
         self.sound_action = QAction("&Sound", self, checkable=True, checked=True)
         self.options_menu.addAction(self.sound_action)
 
+        if self.DEBUG:
+            self.sound_action.setChecked(False)
+
         self.menuBar.addAction(
             QAction(
                 "&About",
@@ -286,6 +319,29 @@ class Window(QWidget):
                 ),
             )
         )
+
+        self.plant_menu = self.options_menu.addMenu("&Plants")
+
+        self.plant_images = []
+        self.plant_checkboxes = []
+
+        for plant in self.PLANTS:
+            self.plant_images.append(tempfile.NamedTemporaryFile(suffix=".svg"))
+            tmp = plant()
+            tmp.set_max_age(1)
+            tmp.set_current_age(1)
+            tmp.generate()
+            tmp.save(self.plant_images[-1].name, 200, 200)
+
+            action = QAction(
+                self,
+                icon=QIcon(self.plant_images[-1].name),
+                checkable=True,
+                checked=True,
+            )
+
+            self.plant_menu.addAction(action)
+            self.plant_checkboxes.append(action)
 
         self.menuBar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Maximum)
 
@@ -359,16 +415,22 @@ class Window(QWidget):
         self.main_label.setStyleSheet('' if not do_break else f'color:{self.BREAK_COLOR};')
 
         # the total time to study for (spinboxes are minutes)
-        self.leftover_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60
+        # since it's rounded down and it looks better to start at the exact time, 0.99 is added
+        self.leftover_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
         self.total_time = self.leftover_time
+
+        self.update_time_label(self.leftover_time)
 
         # don't start showing canvas and growing the plant when we're not studying
         if not do_break:
-            self.plant = choice([OrangeTree, GreenTree])()
-            self.canvas.set_drawable(self.plant)
-            self.plant.change_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
-            self.plant.set_current_age(0)
-            self.canvas.show()
+            possible_plants = [plant for i, plant in enumerate(self.PLANTS) if self.plant_checkboxes[i].isChecked()]
+
+            if len(possible_plants) != 0:
+                self.plant = choice(possible_plants)()
+                self.canvas.set_drawable(self.plant)
+                self.plant.set_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
+                self.plant.set_current_age(0)
+                self.canvas.show()
 
         self.study_timer.stop()  # it could be running - we could be currently in a break
         self.study_timer.start()
@@ -416,7 +478,8 @@ class Window(QWidget):
     def decrease_remaining_time(self):
         """Decrease the remaining time by the timer frequency. Updates clock/plant growth."""
         self.update_time_label(self.leftover_time)
-        self.leftover_time -= self.study_timer_frequency / 1000
+
+        self.leftover_time -= self.study_timer_frequency / ((1/3) if self.DEBUG else 1000)
 
         if self.leftover_time <= 0:
             if self.study_done:
@@ -435,14 +498,16 @@ class Window(QWidget):
 
                 name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString("hh:mm:ss")
 
-                # TODO: what to do with this?
-                # with open("trimer.log", "a") as f:
-                #    f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
+                if self.DEBUG:
+                    with open("trimer.log", "a") as f:
+                       f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
 
-                if not os.path.exists(self.PLANTS_FOLDER):
-                    os.mkdir(self.PLANTS_FOLDER)
+                # if we're not growing a plant, don't save it
+                if not self.canvas.isHidden():
+                    if not os.path.exists(self.PLANTS_FOLDER):
+                        os.mkdir(self.PLANTS_FOLDER)
 
-                self.canvas.save(self.PLANTS_FOLDER + name + ".svg")
+                    self.canvas.save(self.PLANTS_FOLDER + name + ".svg")
 
                 self.play_sound("study_done")
         else:
@@ -452,6 +517,7 @@ class Window(QWidget):
                 self.canvas.update()
 
 
-app = QApplication(sys.argv)
-window = Window()
-app.exit(app.exec_())
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = Window()
+    app.exit(app.exec_())
