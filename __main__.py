@@ -272,6 +272,7 @@ class Window(QWidget):
 
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
+        self.IMAGE_FOLDER = "images/"
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree]
 
@@ -399,6 +400,9 @@ class Window(QWidget):
         self.study_timer.setInterval(int(self.study_timer_frequency))
 
         self.player = QMediaPlayer(self)
+
+        self.setWindowIcon(QIcon(self.IMAGE_FOLDER + "icon.svg"))
+        self.setWindowTitle("Florodoro")
 
         self.show()
         self.canvas.hide()
