@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+from glob import glob
 from os import path
 
 script_location = path.abspath(path.dirname(__file__))
@@ -22,7 +23,7 @@ setup(
 
     # where to look for files
     packages=["florodoro"],
-    data_files=[("", ["LICENSE.txt", "README.md", "florodoro/images/icon.svg"])],
+    data_files=[("", ["LICENSE.txt", "README.md", "florodoro/images/icon.svg", *glob('florodoro/sounds/*'), ])],
 
     entry_points={'console_scripts': ['florodoro=florodoro.__init__:run']},
 
