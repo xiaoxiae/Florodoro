@@ -4,6 +4,7 @@ venv/
 # generated
 plants/
 *.log
+*/__pycache__/*
 
 # build
 *.egg-info
