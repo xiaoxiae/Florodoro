@@ -270,6 +270,8 @@ class Window(QWidget):
 
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
+        self.ROOT_FOLDER = "~/.florodoro/"
+
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
         self.IMAGE_FOLDER = "images/"
@@ -277,7 +279,7 @@ class Window(QWidget):
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree]
 
         # TODO: command line arguments?
-        self.DEBUG = False
+        self.DEBUG = True
 
         self.DEFAULT_STUDY_TIME = 45
         self.DEFAULT_BREAK_TIME = 15
@@ -514,10 +516,12 @@ class Window(QWidget):
 
                 # if we're not growing a plant, don't save it
                 if not self.canvas.isHidden():
-                    if not os.path.exists(self.PLANTS_FOLDER):
-                        os.mkdir(self.PLANTS_FOLDER)
+                    path = os.path.expanduser(self.ROOT_FOLDER) + self.PLANTS_FOLDER
 
-                    self.canvas.save(self.PLANTS_FOLDER + name + ".svg")
+                    if not os.path.exists(path):
+                        os.makedirs(path)
+
+                    self.canvas.save(path + name + ".svg")
 
                 self.play_sound("study_done")
         else:
@@ -526,8 +530,11 @@ class Window(QWidget):
                 self.plant.set_current_age(1 - (self.leftover_time / self.total_time))
                 self.canvas.update()
 
-
-if __name__ == '__main__':
+def run():
     app = QApplication(sys.argv)
     window = Window()
     app.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    run()

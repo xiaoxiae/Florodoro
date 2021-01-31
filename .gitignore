@@ -1,8 +1,17 @@
 .idea/
+venv/
 
-# generated files
+# generated
 plants/
-trimer.log
+*.log
 
-# private files
+# build
+*.egg-info
+build/
+dist
+
+# private
 ignored/
+makefile
+
+
