@@ -511,7 +511,7 @@ class Window(QWidget):
                 name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString("hh:mm:ss")
 
                 if self.DEBUG:
-                    with open("florodoro.log", "a") as f:
+                    with open(os.path.expanduser(self.ROOT_FOLDER) + "florodoro.log", "a") as f:
                         f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
 
                 # if we're not growing a plant, don't save it
