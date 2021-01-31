@@ -279,7 +279,7 @@ class Window(QWidget):
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree]
 
         # TODO: command line arguments?
-        self.DEBUG = True
+        self.DEBUG = False
 
         self.DEFAULT_STUDY_TIME = 45
         self.DEFAULT_BREAK_TIME = 15
