@@ -7,7 +7,7 @@ script_location = path.abspath(path.dirname(__file__))
 setup(
     # information about the package
     name="florodoro",
-    version="0.1.5",
+    version="0.1.6",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="education pyqt5 plants pomodoro",
@@ -23,7 +23,9 @@ setup(
 
     # where to look for files
     packages=["florodoro"],
-    data_files=[("", ["LICENSE.txt", "README.md", "florodoro/images/icon.svg", *glob('florodoro/sounds/*'), ])],
+    include_package_data = True,
+    package_data = {'florodoro': ["sounds/*", "images/*"]},
+    data_files=[("", ["LICENSE.txt", "README.md"])],
 
     entry_points={'console_scripts': ['florodoro=florodoro.__init__:run']},
 
