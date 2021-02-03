@@ -296,6 +296,7 @@ class Window(QWidget):
 
         self.STUDY_TEXT = "Study"
         self.BREAK_TEXT = "Break"
+        self.RESET_TEXT = "Reset"
 
         self.PAUSE_TEXT = "Pause"
         self.CONTINUE_TEXT = "Continue"
@@ -387,11 +388,15 @@ class Window(QWidget):
         self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.toggle_pause)
         self.pause_button.setDisabled(True)
 
+        self.reset_button = QPushButton(self, text=self.RESET_TEXT, clicked=self.reset)
+        self.reset_button.setDisabled(True)
+
         main_horizontal_layout.addWidget(self.study_time_spinbox)
         main_horizontal_layout.addWidget(self.break_time_spinbox)
         main_horizontal_layout.addWidget(self.study_button)
         main_horizontal_layout.addWidget(self.break_button)
         main_horizontal_layout.addWidget(self.pause_button)
+        main_horizontal_layout.addWidget(self.reset_button)
 
         main_vertical_layout.addLayout(main_horizontal_layout)
 
@@ -418,6 +423,7 @@ class Window(QWidget):
         """The function for starting either the study or break timer (depending on do_break)."""
         self.study_button.setDisabled(not do_break)
         self.break_button.setDisabled(True)
+        self.reset_button.setDisabled(False)
 
         self.pause_button.setDisabled(False)
         self.pause_button.setText(self.PAUSE_TEXT)
@@ -462,6 +468,19 @@ class Window(QWidget):
             self.study_timer.start()
             self.pause_button.setText(self.PAUSE_TEXT)
 
+    def reset(self):
+        self.study_timer.stop()
+        self.pause_button.setText(self.PAUSE_TEXT)
+
+        self.main_label.setStyleSheet('')
+        self.study_button.setDisabled(False)
+        self.break_button.setDisabled(False)
+        self.pause_button.setDisabled(True)
+        self.reset_button.setDisabled(True)
+
+        self.main_label.setText(self.INITIAL_TEXT)
+        self.canvas.hide()
+
     def update_time_label(self, time):
         """Update the text of the time label, given some time in seconds."""
         hours = int(time // 3600)
@@ -503,16 +522,9 @@ class Window(QWidget):
 
         if leftover_time <= 0:
             if self.study_done:
-                self.study_timer.stop()
-
-                self.main_label.setStyleSheet('')
-                self.break_button.setDisabled(False)
-                self.pause_button.setDisabled(True)
+                self.reset()
 
                 self.play_sound("break_done")
-
-                self.main_label.setText(self.INITIAL_TEXT)
-                self.canvas.hide()
             else:
                 self.start(do_break=True)
 
