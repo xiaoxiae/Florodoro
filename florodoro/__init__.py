@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 from math import sin, pi, acos, degrees
 from random import random, uniform, choice
 
@@ -428,10 +429,11 @@ class Window(QWidget):
 
         # the total time to study for (spinboxes are minutes)
         # since it's rounded down and it looks better to start at the exact time, 0.99 is added
-        self.leftover_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
-        self.total_time = self.leftover_time
+        self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
+        self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
 
-        self.update_time_label(self.leftover_time)
+        # so it's displayed immediately
+        self.update_time_label(self.total_time)
 
         # don't start showing canvas and growing the plant when we're not studying
         if not do_break:
@@ -452,9 +454,11 @@ class Window(QWidget):
         if self.study_timer.isActive():
             self.study_timer.stop()
             self.pause_button.setText(self.CONTINUE_TEXT)
+            self.pause_time = datetime.now()
 
         # if not, resume
         else:
+            self.ending_time += datetime.now() - self.pause_time
             self.study_timer.start()
             self.pause_button.setText(self.PAUSE_TEXT)
 
@@ -489,11 +493,15 @@ class Window(QWidget):
 
     def decrease_remaining_time(self):
         """Decrease the remaining time by the timer frequency. Updates clock/plant growth."""
-        self.update_time_label(self.leftover_time)
+        if self.DEBUG:
+            self.ending_time -= timedelta(seconds=30)
 
-        self.leftover_time -= self.study_timer_frequency / ((1 / 3) if self.DEBUG else 1000)
+        time_delta = self.ending_time - datetime.now()
+        leftover_time = time_delta.total_seconds()
 
-        if self.leftover_time <= 0:
+        self.update_time_label(leftover_time)
+
+        if leftover_time <= 0:
             if self.study_done:
                 self.study_timer.stop()
 
@@ -527,8 +535,9 @@ class Window(QWidget):
         else:
             # if there is leftover time and we haven't finished studying, grow the plant
             if not self.study_done:
-                self.plant.set_current_age(1 - (self.leftover_time / self.total_time))
+                self.plant.set_current_age(1 - (leftover_time / self.total_time))
                 self.canvas.update()
+
 
 def run():
     app = QApplication(sys.argv)
