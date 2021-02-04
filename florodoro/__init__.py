@@ -4,10 +4,10 @@ import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from math import sin, pi, acos, degrees
-from random import random, uniform, choice
+from random import random, uniform, choice, randint
 
-from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect
-from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon
+from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect, QRectF
+from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon, QPainterPath
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
@@ -42,17 +42,207 @@ class Drawable(ABC):
         painter.end()
 
 
-class Plant(ABC):
-    @abstractmethod
+class Plant(Drawable):
+    age = 0  # every plant has a current age (from 0 to 1)
+    maxAge = None  # and a max age (from 0 to 1)
+
+    green_color = QColor(0, 119, 0)
+    white_color = QColor(255, 255, 255)
+
+    def set_current_age(self, age: float):
+        """Set the current age of the plant (normalized from 0 to 1). Changes the way it is drawn."""
+        self.age = age
+
+    def set_max_age(self, maxAge: float):
+        """Change the plant's max age, re-generating it in the process."""
+        self.maxAge = maxAge
+        self.generate()
+
+    def get_adjusted_age(self):
+        """Return the age, adjusted to increase to 1 slower (some parts of the plant grow slower than others)."""
+        return self.age ** 2
+
+    def draw(self, painter: QPainter, width: int, height: int):
+        if self.maxAge is None:
+            return
+
+        # position to the bottom center of the canvas
+        painter.translate(width / 2, height)
+        painter.scale(1, -1)
+
+        self._draw(painter, width, height)
+
     def generate(self):
-        """Generate the parameters necessary for displaying the plant grow."""
-        pass
+        # so we don't go from 0 to 1, but from 0.5 to 1
+        # a coefficient to multiply all parts of the given plant by that depend on its maximum age
+        self.age_coefficient = (self.maxAge + 1) / 2
+
+        # make the sizes somewhat random and organic
+        self.deficit_coefficient = uniform(0.9, 1)
 
 
-class Tree(Drawable, Plant):
+class Flower(Plant):
+
+    def generateLeafs(self, count):
+        # position / size coefficient (smaller/larger leafs) / rotation
+        self.leafs = [(uniform(self.deficit_coefficient * 0.25, self.deficit_coefficient * 0.40), uniform(0.9, 1.1),
+                       (((i - 1 / 2) * 2) if count == 2 else (-1 if random() < 0.5 else 1))) for i in
+                      range(count)]
+
+    def generate(self):
+        super().generate()
+
+        # the ending position of the flower
+        x_coefficient = uniform(0.4, 1) * (-1 if random() < 0.5 else 1)
+        self.x_position = lambda width: width / 9 * x_coefficient
+        self.y_position = lambda height: height / 2.5 * self.deficit_coefficient * self.age_coefficient
+
+        # the size of the leafs
+        self.leaf_size = lambda width: width / 7 * self.deficit_coefficient * self.age_coefficient
+
+        # always generate 2 leafs
+        self.generateLeafs(2)
+
+        # the width of the stem
+        self.stem_width = uniform(3.5, 4) * self.age_coefficient
+
+    def _draw(self, painter: QPainter, width: int, height: int):
+        self.x = self.x_position(width) * smoothen_curve(self.age)
+        self.y = self.y_position(height) * smoothen_curve(self.age)
+
+        painter.setPen(QPen(self.green_color, self.stem_width * smoothen_curve(self.age)))
+
+        # draw the stem
+        path = QPainterPath()
+        path.quadTo(0, self.y * 0.6, self.x, self.y)
+        painter.drawPath(path)
+
+        # draw the leaves
+        for position, coefficient, rotation in self.leafs:
+            painter.save()
+
+            # find the point on the stem and rotate the leaf accordingly
+            painter.translate(path.pointAtPercent(position))
+            painter.rotate(degrees(rotation))
+
+            # rotate according to where the flower is leaning towards
+            if self.y != 0:
+                painter.rotate(-degrees(sin(self.x / self.y)))
+
+            # make it so both leaves are facing the same direction
+            if rotation < 0:
+                painter.scale(-1, 1)
+
+            painter.setBrush(QBrush(self.green_color))
+            painter.setPen(QPen(0))
+
+            # draw the leaf
+            leaf = QPainterPath()
+            leaf.setFillRule(Qt.WindingFill)
+            ls = self.leaf_size(width) * smoothen_curve(self.age) ** 2 * coefficient
+            leaf.quadTo(0.4 * ls, 0.5 * ls, 0, ls)
+            leaf.cubicTo(0, 0.5 * ls, -0.4 * ls, 0.4 * ls, 0, 0)
+            painter.drawPath(leaf)
+
+            painter.restore()
+
+
+class CircularFlower(Flower):
+    # colors of the Florodoro logo
+    colors = [
+        QColor(139, 139, 255),  # blue-ish
+        QColor(72, 178, 173),  # green-ish
+        QColor(255, 85, 85),  # red-ish
+        QColor(238, 168, 43),  # orange-ish
+        QColor(226, 104, 155),  # pink-ish
+    ]
+
+    def triangle_pellet(self, painter: QPainter, pellet_size):
+        """A pellet that is pointy and triangular (1st in logo)"""
+        pellet_size *= 1.5
+
+        pellet = QPainterPath()
+        pellet.setFillRule(Qt.WindingFill)
+        pellet.quadTo(0.9 * pellet_size, 0.5 * pellet_size, 0, pellet_size)
+        pellet.quadTo(-0.5 * pellet_size, 0.4 * pellet_size, 0, 0)
+        painter.drawPath(pellet)
+
+    def circular_pellet(self, painter: QPainter, pellet_size):
+        """A perfectly circular pellet (2nd in logo)."""
+        painter.drawEllipse(QRectF(0, 0, pellet_size, pellet_size))
+
+    def round_pellet(self, painter: QPainter, pellet_size):
+        """A pellet that is round but not a circle (3rd in the logo)."""
+        pellet_size *= 1.3
+
+        pellet = QPainterPath()
+        pellet.setFillRule(Qt.WindingFill)
+
+        for c in [1, -1]:
+            pellet.quadTo(c * pellet_size * 0.8, pellet_size * 0.9, 0, pellet_size if c != -1 else 0)
+
+        painter.drawPath(pellet)
+
+    def dip_pellet(self, painter: QPainter, pellet_size):
+        """A pellet that has a dip in the middle (4th in the logo)."""
+        pellet_size *= 1.2
+
+        pellet = QPainterPath()
+        pellet.setFillRule(Qt.WindingFill)
+
+        for c in [1, -1]:
+            pellet.quadTo(c * pellet_size, pellet_size * 1.4, 0, pellet_size if c != -1 else 0)
+
+        painter.drawPath(pellet)
+
+    def generate(self):
+        super().generate()
+
+        # color of the flower
+        self.color = choice(self.colors)
+
+        self.number_of_pellets = randint(5, 7)
+
+        self.pellet_size = lambda width: width / 9 * self.deficit_coefficient * self.age_coefficient
+
+        # the center of the plant is smaller, compared to other pellet sizes
+        self.center_pellet_smaller_coefficient = uniform(0.75, 0.85)
+
+        self.pellet_drawing_function = choice(
+            [self.circular_pellet, self.triangle_pellet, self.dip_pellet, self.round_pellet])
+
+        # the m and n pellets don't look good with any other number of leafs (other than 5)
+        if self.pellet_drawing_function in [self.dip_pellet, self.round_pellet]:
+            self.number_of_pellets = 5
+
+    def _draw(self, painter: QPainter, width: int, height: int):
+        super()._draw(painter, width, height)
+
+        painter.save()
+
+        # move to the position of the flower
+        painter.translate(self.x, self.y)
+
+        painter.setPen(QPen(Qt.NoPen))
+        painter.setBrush(QBrush(self.color))
+
+        pellet_size = self.pellet_size(width) * smoothen_curve(self.age)
+
+        # draw each of the pellets
+        for i in range(self.number_of_pellets):
+            self.pellet_drawing_function(painter, pellet_size)
+            painter.rotate(360 / self.number_of_pellets)
+
+        # the center of the flower
+        painter.setBrush(QBrush(self.white_color))
+        pellet_size *= self.center_pellet_smaller_coefficient
+        painter.drawEllipse(QRectF(-pellet_size / 2, -pellet_size / 2, pellet_size, pellet_size))
+
+        painter.restore()
+
+
+class Tree(Plant):
     """A simple tree class that all trees originate from."""
-    age = 0
-    maxAge = None
     brown_color = QColor(77, 51, 0)
 
     def generateBranches(self, count):
@@ -63,11 +253,7 @@ class Tree(Drawable, Plant):
                          range(count)]
 
     def generate(self):
-        # so we don't go from 0 to 1, but from 0.5 to 1
-        self.age_coefficient = (self.maxAge + 1) / 2
-
-        # make the sizes somewhat random and organic
-        self.deficit_coefficient = uniform(0.9, 1)
+        super().generate()
 
         # generate somewhere between 1 and 2 branches
         self.generateBranches(round(uniform(1, 2 * self.age_coefficient)))
@@ -79,19 +265,6 @@ class Tree(Drawable, Plant):
         # the width/height of the other branches
         self.branch_width = lambda width: width / 18 * self.deficit_coefficient * self.age_coefficient
         self.branch_height = lambda height: height / 2.7 * self.deficit_coefficient * self.age_coefficient
-
-    def set_current_age(self, age: float):
-        """Set the current age of the tree (normalized from 0 to 1). Changes the way it is drawn."""
-        self.age = age
-
-    def set_max_age(self, maxAge: float):
-        """Change the tree's max age, re-generating it in the process."""
-        self.maxAge = maxAge
-        self.generate()
-
-    def get_adjusted_age(self):
-        """Return the age, adjusted to increase to 1 slower."""
-        return self.age ** 2
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setBrush(QBrush(self.brown_color))
@@ -115,15 +288,6 @@ class Tree(Drawable, Plant):
                 QPointF(0, self.branch_height(height) * smoothen_curve(self.get_adjusted_age()) * (1 - h)))
 
             painter.restore()
-
-    def draw(self, painter: QPainter, width: int, height: int):
-        if self.maxAge is None:
-            return
-
-        painter.translate(width / 2, height)
-        painter.scale(1, -1)
-
-        self._draw(painter, width, height)
 
 
 class OrangeTree(Tree):
@@ -180,8 +344,6 @@ class OrangeTree(Tree):
 
 
 class GreenTree(Tree):
-    green_color = QColor(0, 119, 0)
-
     def generate(self):
         super().generate()
 
@@ -277,7 +439,7 @@ class Window(QWidget):
         self.PLANTS_FOLDER = "plants/"
         self.IMAGE_FOLDER = "images/"
 
-        self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree]
+        self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
 
         # TODO: command line arguments?
         self.DEBUG = False
