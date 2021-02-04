@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import tempfile
@@ -7,7 +8,7 @@ from math import sin, pi, acos, degrees
 from random import random, uniform, choice, randint
 
 from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect, QRectF
-from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon, QPainterPath
+from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
@@ -426,10 +427,26 @@ class Canvas(QWidget):
         painter.end()
 
 
-class Window(QWidget):
+class Florodoro(QWidget):
+
+    def parseArguments(self):
+        parser = argparse.ArgumentParser(
+            description="A pomodoro timer that grows procedurally generated trees and flowers while you're studying.",
+        )
+
+        parser.add_argument(
+            "-d",
+            "--debug",
+            action="store_true",
+            help="run the app in debug mode",
+        )
+
+        return parser.parse_args()
 
     def __init__(self):
         super().__init__()
+
+        arguments = self.parseArguments()
 
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -441,8 +458,7 @@ class Window(QWidget):
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
 
-        # TODO: command line arguments?
-        self.DEBUG = False
+        self.DEBUG = arguments.debug
 
         self.DEFAULT_STUDY_TIME = 45
         self.DEFAULT_BREAK_TIME = 15
@@ -581,6 +597,18 @@ class Window(QWidget):
         """Starts the break, instead of the study."""
         self.start(do_break=True)
 
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key_Escape:
+            possible_plants = [plant for i, plant in enumerate(self.PLANTS) if self.plant_checkboxes[i].isChecked()]
+
+            if len(possible_plants) != 0:
+                self.plant = choice(possible_plants)()
+                self.canvas.set_drawable(self.plant)
+                self.plant.set_max_age(1)
+                self.plant.set_current_age(1)
+                self.canvas.show()
+                self.canvas.update()
+
     def start(self, do_break=False):
         """The function for starting either the study or break timer (depending on do_break)."""
         self.study_button.setDisabled(not do_break)
@@ -715,7 +743,7 @@ class Window(QWidget):
 
 def run():
     app = QApplication(sys.argv)
-    window = Window()
+    Florodoro()
     app.exit(app.exec_())
 
 
