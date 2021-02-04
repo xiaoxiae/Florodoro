@@ -12,7 +12,7 @@ from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon, QPainterPa
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
-    QMessageBox, QMenuBar
+    QMessageBox, QMenuBar, QStackedLayout
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 
 
@@ -67,11 +67,14 @@ class Plant(Drawable):
         if self.maxAge is None:
             return
 
+        w = min(width, height)
+        h = min(width, height)
+
         # position to the bottom center of the canvas
         painter.translate(width / 2, height)
         painter.scale(1, -1)
 
-        self._draw(painter, width, height)
+        self._draw(painter, w, h)
 
     def generate(self):
         # so we don't go from 0 to 1, but from 0.5 to 1
@@ -392,10 +395,11 @@ class DoubleGreenTree(GreenTree):
 class Canvas(QWidget):
     """A widget that takes a drawable object and constantly draws it."""
 
-    def __init__(self, obj: Drawable = None, parent=None):
-        super(Canvas, self).__init__(parent)
-        self.object = obj
-        self.setFixedSize(300, 300)
+    def __init__(self, width: int, height: int, *args, **kwargs):
+        super(Canvas, self).__init__(*args, **kwargs)
+        self.object = None
+        self.setMinimumWidth(width)
+        self.setMinimumHeight(height)
 
     def save(self, path: str):
         """Save the drawable object to the specified file."""
@@ -417,12 +421,6 @@ class Canvas(QWidget):
         painter.save()
         self.object.draw(painter, self.width(), self.height())
         painter.restore()
-
-        # draw a border
-        pen = QPen(Qt.SolidLine)
-        pen.setWidth(3)
-        painter.setPen(pen)
-        painter.drawRect(QRect(0, 0, self.width(), self.height()))
 
         painter.end()
 
@@ -449,6 +447,9 @@ class Florodoro(QWidget):
         arguments = self.parseArguments()
 
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+        self.WIDTH = 500
+        self.HEIGHT = 500
 
         self.ROOT_FOLDER = "~/.florodoro/"
 
@@ -527,35 +528,38 @@ class Florodoro(QWidget):
             self.plant_menu.addAction(action)
             self.plant_checkboxes.append(action)
 
+        # there there is currently a plant that is being grown
+        # initially False; note that pressing start doesn't set this to true if all plants are deselected!
+        self.plant_growing = False
+
         self.menuBar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Maximum)
 
-        main_vertical_layout = QVBoxLayout()
+        main_vertical_layout = QVBoxLayout(self)
         main_vertical_layout.setContentsMargins(0, 0, 0, 0)
         main_vertical_layout.setSpacing(0)
-
         main_vertical_layout.addWidget(self.menuBar)
 
+        self.canvas = Canvas(self.WIDTH, self.HEIGHT, self)
+
         self.main_label = QLabel(self)
-        self.main_label.setAlignment(Qt.AlignCenter)
-        self.main_label.setFont(QFont('Arial', 120, QFont.Bold))
+        self.main_label.setFont(QFont('Arial', 100, QFont.Bold))
         self.main_label.setText(self.INITIAL_TEXT)
 
-        self.canvas = Canvas()
-
-        main_horizontal_layout = QHBoxLayout()
-        main_horizontal_layout.setContentsMargins(self.WIDGET_SPACING, self.WIDGET_SPACING, self.WIDGET_SPACING,
-                                                  self.WIDGET_SPACING)
-        main_horizontal_layout.addWidget(self.main_label)
-        main_horizontal_layout.addWidget(self.canvas)
-
-        main_vertical_layout.addLayout(main_horizontal_layout)
-
-        main_horizontal_layout = QHBoxLayout()
+        main_horizontal_layout = QHBoxLayout(self)
 
         self.study_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_STUDY_TIME,
                                            singleStep=self.STEP)
         self.break_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_BREAK_TIME,
                                            singleStep=self.STEP)
+
+        stacked_layout = QStackedLayout(self)
+        stacked_layout.addWidget(self.main_label)
+        stacked_layout.addWidget(self.canvas)
+        stacked_layout.setStackingMode(QStackedLayout.StackAll)
+
+        self.main_label.setAlignment(Qt.AlignCenter)
+
+        main_vertical_layout.addLayout(stacked_layout)
 
         self.break_time_spinbox.setStyleSheet(f'color:{self.BREAK_COLOR};')
 
@@ -591,7 +595,6 @@ class Florodoro(QWidget):
         self.setWindowTitle("Florodoro")
 
         self.show()
-        self.canvas.hide()
 
     def start_break(self):
         """Starts the break, instead of the study."""
@@ -606,7 +609,6 @@ class Florodoro(QWidget):
                 self.canvas.set_drawable(self.plant)
                 self.plant.set_max_age(1)
                 self.plant.set_current_age(1)
-                self.canvas.show()
                 self.canvas.update()
 
     def start(self, do_break=False):
@@ -640,7 +642,9 @@ class Florodoro(QWidget):
                 self.canvas.set_drawable(self.plant)
                 self.plant.set_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
                 self.plant.set_current_age(0)
-                self.canvas.show()
+                self.plant_growing = True
+            else:
+                self.plant_growing = False
 
         self.study_timer.stop()  # it could be running - we could be currently in a break
         self.study_timer.start()
@@ -668,8 +672,10 @@ class Florodoro(QWidget):
         self.pause_button.setDisabled(True)
         self.reset_button.setDisabled(True)
 
+        if self.plant_growing:
+            self.plant.set_current_age(0)
+
         self.main_label.setText(self.INITIAL_TEXT)
-        self.canvas.hide()
 
     def update_time_label(self, time):
         """Update the text of the time label, given some time in seconds."""
@@ -716,7 +722,7 @@ class Florodoro(QWidget):
 
                 self.play_sound("break_done")
             else:
-                self.start(do_break=True)
+                self.start_break()
 
                 name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString("hh:mm:ss")
 
@@ -724,8 +730,7 @@ class Florodoro(QWidget):
                     with open(os.path.expanduser(self.ROOT_FOLDER) + "florodoro.log", "a") as f:
                         f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
 
-                # if we're not growing a plant, don't save it
-                if not self.canvas.isHidden():
+                if self.plant_growing:
                     path = os.path.expanduser(self.ROOT_FOLDER) + self.PLANTS_FOLDER
 
                     if not os.path.exists(path):
@@ -737,7 +742,9 @@ class Florodoro(QWidget):
         else:
             # if there is leftover time and we haven't finished studying, grow the plant
             if not self.study_done:
-                self.plant.set_current_age(1 - (leftover_time / self.total_time))
+                if self.plant_growing:
+                    self.plant.set_current_age(1 - (leftover_time / self.total_time))
+
                 self.canvas.update()
 
 

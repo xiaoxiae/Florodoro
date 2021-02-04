@@ -7,7 +7,7 @@ script_location = path.abspath(path.dirname(__file__))
 setup(
     # information about the package
     name="florodoro",
-    version="0.1.7",
+    version="0.2.0",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="education pyqt5 plants pomodoro",
