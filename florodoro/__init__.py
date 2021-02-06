@@ -541,19 +541,36 @@ class Florodoro(QWidget):
 
         self.canvas = Canvas(self.WIDTH, self.HEIGHT, self)
 
+        font = self.font()
+        font.setPointSize(100)
+
         self.main_label = QLabel(self)
-        self.main_label.setFont(QFont('Arial', 100, QFont.Bold))
+        self.main_label.setFont(font)
         self.main_label.setText(self.INITIAL_TEXT)
+
+        font.setPointSize(26)
+        self.cycle_label = QLabel(self)
+        self.cycle_label.setAlignment(Qt.AlignTop)
+        self.cycle_label.setMargin(20)
+        self.cycle_label.setFont(font)
 
         main_horizontal_layout = QHBoxLayout(self)
 
-        self.study_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_STUDY_TIME,
+        self.study_time_spinbox = QSpinBox(self, prefix="Study for: ", suffix="min.", minimum=1, maximum=self.MAX_TIME,
+                                           value=self.DEFAULT_STUDY_TIME,
                                            singleStep=self.STEP)
-        self.break_time_spinbox = QSpinBox(self, minimum=1, maximum=self.MAX_TIME, value=self.DEFAULT_BREAK_TIME,
+        self.break_time_spinbox = QSpinBox(self, prefix="Rest for: ", suffix="min.", minimum=1, maximum=self.MAX_TIME,
+                                           value=self.DEFAULT_BREAK_TIME,
                                            singleStep=self.STEP)
+        self.cycles_spinbox = QSpinBox(self, prefix="Cycles: ", minimum=1, value=1)
+
+        # keep track of remaning number of cycles and the starting number of cycles
+        self.cycles = self.cycles_spinbox.value()
+        self.initial_cycles = self.cycles
 
         stacked_layout = QStackedLayout(self)
         stacked_layout.addWidget(self.main_label)
+        stacked_layout.addWidget(self.cycle_label)
         stacked_layout.addWidget(self.canvas)
         stacked_layout.setStackingMode(QStackedLayout.StackAll)
 
@@ -565,16 +582,14 @@ class Florodoro(QWidget):
 
         self.study_button = QPushButton(self, text=self.STUDY_TEXT, clicked=self.start)
         self.break_button = QPushButton(self, text=self.BREAK_TEXT, clicked=self.start_break)
-        self.break_button.setStyleSheet(f'color:{self.BREAK_COLOR};')
+        self.break_button.setStyleSheet("QPushButton:disabled{ color: #ffbd7f } QPushButton:enabled{ color: #ff7b00 }")
 
         self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.toggle_pause)
-        self.pause_button.setDisabled(True)
-
-        self.reset_button = QPushButton(self, text=self.RESET_TEXT, clicked=self.reset)
-        self.reset_button.setDisabled(True)
+        self.reset_button = QPushButton(self, text=self.RESET_TEXT, clicked=self.press_reset)
 
         main_horizontal_layout.addWidget(self.study_time_spinbox)
         main_horizontal_layout.addWidget(self.break_time_spinbox)
+        main_horizontal_layout.addWidget(self.cycles_spinbox)
         main_horizontal_layout.addWidget(self.study_button)
         main_horizontal_layout.addWidget(self.break_button)
         main_horizontal_layout.addWidget(self.pause_button)
@@ -594,6 +609,9 @@ class Florodoro(QWidget):
         self.setWindowIcon(QIcon(self.IMAGE_FOLDER + "icon.svg"))
         self.setWindowTitle("Florodoro")
 
+        # set initial UI state
+        self.reset()
+
         self.show()
 
     def start_break(self):
@@ -601,17 +619,19 @@ class Florodoro(QWidget):
         self.start(do_break=True)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        if event.key() == Qt.Key_Escape:
-            possible_plants = [plant for i, plant in enumerate(self.PLANTS) if self.plant_checkboxes[i].isChecked()]
+        """Debug-related keyboard controls."""
+        if self.DEBUG:
+            if event.key() == Qt.Key_Escape:
+                possible_plants = [plant for i, plant in enumerate(self.PLANTS) if self.plant_checkboxes[i].isChecked()]
 
-            if len(possible_plants) != 0:
-                self.plant = choice(possible_plants)()
-                self.canvas.set_drawable(self.plant)
-                self.plant.set_max_age(1)
-                self.plant.set_current_age(1)
-                self.canvas.update()
+                if len(possible_plants) != 0:
+                    self.plant = choice(possible_plants)()
+                    self.canvas.set_drawable(self.plant)
+                    self.plant.set_max_age(1)
+                    self.plant.set_current_age(1)
+                    self.canvas.update()
 
-    def start(self, do_break=False):
+    def start(self, do_break=False, cycled_call=False):
         """The function for starting either the study or break timer (depending on do_break)."""
         self.study_button.setDisabled(not do_break)
         self.break_button.setDisabled(True)
@@ -623,6 +643,10 @@ class Florodoro(QWidget):
         # study_done is set depending on whether we finished studying (are having a break) or not
         self.study_done = do_break
 
+        if not cycled_call and not do_break:
+            self.cycles = self.cycles_spinbox.value()
+            self.initial_cycles = self.cycles
+
         self.main_label.setStyleSheet('' if not do_break else f'color:{self.BREAK_COLOR};')
 
         # the total time to study for (spinboxes are minutes)
@@ -632,6 +656,7 @@ class Florodoro(QWidget):
 
         # so it's displayed immediately
         self.update_time_label(self.total_time)
+        self.update_cycles_label()
 
         # don't start showing canvas and growing the plant when we're not studying
         if not do_break:
@@ -662,7 +687,11 @@ class Florodoro(QWidget):
             self.study_timer.start()
             self.pause_button.setText(self.PAUSE_TEXT)
 
-    def reset(self):
+    def press_reset(self):
+        """For some reason, pressing a button calls reset() with button_press being false."""
+        self.reset(button_press=True)
+
+    def reset(self, button_press=True):
         self.study_timer.stop()
         self.pause_button.setText(self.PAUSE_TEXT)
 
@@ -675,7 +704,13 @@ class Florodoro(QWidget):
         if self.plant_growing:
             self.plant.set_current_age(0)
 
+        # pressing study > reset > break with cycles > 2 continues doing the cycles after end of break
+        # this prevents that
+        if button_press:
+            self.cycles = 1
+
         self.main_label.setText(self.INITIAL_TEXT)
+        self.cycle_label.setText('')
 
     def update_time_label(self, time):
         """Update the text of the time label, given some time in seconds."""
@@ -684,13 +719,16 @@ class Florodoro(QWidget):
         seconds = int(time % 60)
 
         # smooth timer: hide minutes/hours if there are none
+        result = ""
         if hours == 0:
             if minutes == 0:
-                self.main_label.setText(str(seconds))
+                result += str(seconds)
             else:
-                self.main_label.setText(str(minutes) + QTime(0, 0, seconds).toString(":ss"))
+                result += str(minutes) + QTime(0, 0, seconds).toString(":ss")
         else:
-            self.main_label.setText(str(hours) + QTime(0, minutes, seconds).toString(":mm:ss"))
+            result += str(hours) + QTime(0, minutes, seconds).toString(":mm:ss")
+
+        self.main_label.setText(result)
 
     def play_sound(self, name: str):
         """Play a file from the sound directory. Extension is not included, will be added automatically."""
@@ -706,6 +744,10 @@ class Florodoro(QWidget):
                 self.player.setMedia(content)
                 self.player.play()
 
+    def update_cycles_label(self):
+        if self.initial_cycles != 1 and not self.study_done:
+            self.cycle_label.setText(f"{self.initial_cycles - self.cycles + 1}/{self.initial_cycles}")
+
     def decrease_remaining_time(self):
         """Decrease the remaining time by the timer frequency. Updates clock/plant growth."""
         if self.DEBUG:
@@ -718,9 +760,17 @@ class Florodoro(QWidget):
 
         if leftover_time <= 0:
             if self.study_done:
-                self.reset()
+                self.reset(button_press=False)
 
                 self.play_sound("break_done")
+
+                if self.cycles != 1:
+                    self.cycles -= 1
+                    self.start(cycled_call=True)
+
+                    self.update_cycles_label()
+                else:
+                    self.cycle_label.setText('')
             else:
                 self.start_break()
 
