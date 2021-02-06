@@ -8,12 +8,14 @@ from math import sin, pi, acos, degrees
 from random import random, uniform, choice, randint
 
 from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect, QRectF
-from PyQt5.QtGui import QFont, QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent
+from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
     QMessageBox, QMenuBar, QStackedLayout
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
+
+from plyer import notification
 
 
 def smoothen_curve(x: float):
@@ -485,8 +487,13 @@ class Florodoro(QWidget):
         self.menuBar = QMenuBar(self)
         self.options_menu = self.menuBar.addMenu('Options')
 
+        self.notify_menu = self.options_menu.addMenu("&Notify")
+
         self.sound_action = QAction("&Sound", self, checkable=True, checked=True)
-        self.options_menu.addAction(self.sound_action)
+        self.notify_menu.addAction(self.sound_action)
+
+        self.popup_action = QAction("&Pop-up", self, checkable=True, checked=True)
+        self.notify_menu.addAction(self.popup_action)
 
         if self.DEBUG:
             self.sound_action.setChecked(False)
@@ -732,9 +739,6 @@ class Florodoro(QWidget):
 
     def play_sound(self, name: str):
         """Play a file from the sound directory. Extension is not included, will be added automatically."""
-        if not self.sound_action.isChecked():
-            return
-
         for file in os.listdir(self.SOUNDS_FOLDER):
             # if the file starts with the provided name and only contains an extension after, try to play it
             if file.startswith(name) and file[len(name):][0] == ".":
@@ -743,6 +747,10 @@ class Florodoro(QWidget):
                 content = QMediaContent(url)
                 self.player.setMedia(content)
                 self.player.play()
+
+    def show_notification(self, message: str):
+        """Show the specified notification using plyer."""
+        notification.notify("Florodoro", message, "Florodoro", os.path.abspath(self.IMAGE_FOLDER + "icon.svg"))
 
     def update_cycles_label(self):
         if self.initial_cycles != 1 and not self.study_done:
@@ -762,7 +770,11 @@ class Florodoro(QWidget):
             if self.study_done:
                 self.reset(button_press=False)
 
-                self.play_sound("break_done")
+                if self.sound_action.isChecked():
+                    self.play_sound("break_done")
+
+                if self.popup_action.isChecked():
+                    self.show_notification("Break is over!")
 
                 if self.cycles != 1:
                     self.cycles -= 1
@@ -788,7 +800,11 @@ class Florodoro(QWidget):
 
                     self.canvas.save(path + name + ".svg")
 
-                self.play_sound("study_done")
+                if self.sound_action.isChecked():
+                    self.play_sound("study_done")
+
+                if self.popup_action.isChecked():
+                    self.show_notification("Studying finished, take a break!")
         else:
             # if there is leftover time and we haven't finished studying, grow the plant
             if not self.study_done:
