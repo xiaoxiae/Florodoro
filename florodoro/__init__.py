@@ -483,6 +483,7 @@ class Florodoro(QWidget):
         self.CONTINUE_TEXT = "Continue"
 
         self.BREAK_COLOR = "#B37700"
+        self.DISABLED_BREAK_COLOR = "#FFBD7F"
 
         self.menuBar = QMenuBar(self)
         self.options_menu = self.menuBar.addMenu('Options')
@@ -589,7 +590,7 @@ class Florodoro(QWidget):
 
         self.study_button = QPushButton(self, text=self.STUDY_TEXT, clicked=self.start)
         self.break_button = QPushButton(self, text=self.BREAK_TEXT, clicked=self.start_break)
-        self.break_button.setStyleSheet("QPushButton:disabled{ color: #ffbd7f } QPushButton:enabled{ color: #ff7b00 }")
+        self.break_button.setStyleSheet(f"QPushButton:disabled{{ color: {self.DISABLED_BREAK_COLOR} }} QPushButton:enabled{{ color: {self.BREAK_COLOR} }}")
 
         self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.toggle_pause)
         self.reset_button = QPushButton(self, text=self.RESET_TEXT, clicked=self.press_reset)
