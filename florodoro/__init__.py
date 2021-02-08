@@ -397,11 +397,9 @@ class DoubleGreenTree(GreenTree):
 class Canvas(QWidget):
     """A widget that takes a drawable object and constantly draws it."""
 
-    def __init__(self, width: int, height: int, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(Canvas, self).__init__(*args, **kwargs)
         self.object = None
-        self.setMinimumWidth(width)
-        self.setMinimumHeight(height)
 
     def save(self, path: str):
         """Save the drawable object to the specified file."""
@@ -547,7 +545,7 @@ class Florodoro(QWidget):
         main_vertical_layout.setSpacing(0)
         main_vertical_layout.addWidget(self.menuBar)
 
-        self.canvas = Canvas(self.WIDTH, self.HEIGHT, self)
+        self.canvas = Canvas(self)
 
         font = self.font()
         font.setPointSize(100)
