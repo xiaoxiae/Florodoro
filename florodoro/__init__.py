@@ -8,12 +8,14 @@ from math import sin, pi, acos, degrees
 from random import random, uniform, choice, randint
 
 from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect, QRectF
-from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent
+from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent, QFontDatabase, QFont
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
-    QMessageBox, QMenuBar, QStackedLayout
+    QMessageBox, QMenuBar, QStackedLayout, QFontDialog
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
+
+import qtawesome as qta
 
 from plyer import notification
 
@@ -448,14 +450,26 @@ class Florodoro(QWidget):
 
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-        self.WIDTH = 500
-        self.HEIGHT = 500
+        self.MIN_WIDTH = 600
+        self.MIN_HEIGHT = 350
+
+        self.setMinimumWidth(self.MIN_WIDTH)
+        self.setMinimumHeight(self.MIN_HEIGHT)
 
         self.ROOT_FOLDER = "~/.florodoro/"
 
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
         self.IMAGE_FOLDER = "images/"
+
+        self.TEXT_COLOR = self.palette().text().color()
+        self.BREAK_COLOR = "#B37700"
+
+        self.STUDY_ICON = qta.icon('fa5s.book', color=self.TEXT_COLOR)
+        self.BREAK_ICON = qta.icon('fa5s.coffee', color=self.BREAK_COLOR)
+        self.CONTINUE_ICON = qta.icon('fa5s.play', color=self.TEXT_COLOR)
+        self.PAUSE_ICON = qta.icon('fa5s.pause', color=self.TEXT_COLOR)
+        self.RESET_ICON = qta.icon('fa5s.undo', color=self.TEXT_COLOR)
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
 
@@ -472,16 +486,6 @@ class Florodoro(QWidget):
         self.STEP = 5
 
         self.INITIAL_TEXT = "Start!"
-
-        self.STUDY_TEXT = "Study"
-        self.BREAK_TEXT = "Break"
-        self.RESET_TEXT = "Reset"
-
-        self.PAUSE_TEXT = "Pause"
-        self.CONTINUE_TEXT = "Continue"
-
-        self.BREAK_COLOR = "#B37700"
-        self.DISABLED_BREAK_COLOR = "#FFBD7F"
 
         self.menuBar = QMenuBar(self)
         self.options_menu = self.menuBar.addMenu('Options')
@@ -586,12 +590,10 @@ class Florodoro(QWidget):
 
         self.break_time_spinbox.setStyleSheet(f'color:{self.BREAK_COLOR};')
 
-        self.study_button = QPushButton(self, text=self.STUDY_TEXT, clicked=self.start)
-        self.break_button = QPushButton(self, text=self.BREAK_TEXT, clicked=self.start_break)
-        self.break_button.setStyleSheet(f"QPushButton:disabled{{ color: {self.DISABLED_BREAK_COLOR} }} QPushButton:enabled{{ color: {self.BREAK_COLOR} }}")
-
-        self.pause_button = QPushButton(self, text=self.PAUSE_TEXT, clicked=self.toggle_pause)
-        self.reset_button = QPushButton(self, text=self.RESET_TEXT, clicked=self.press_reset)
+        self.study_button = QPushButton(self, clicked=self.start, icon=self.STUDY_ICON)
+        self.break_button = QPushButton(self, clicked=self.start_break, icon=self.BREAK_ICON)
+        self.pause_button = QPushButton(self, clicked=self.toggle_pause, icon=self.PAUSE_ICON)
+        self.reset_button = QPushButton(self, clicked=self.press_reset, icon=self.RESET_ICON)
 
         main_horizontal_layout.addWidget(self.study_time_spinbox)
         main_horizontal_layout.addWidget(self.break_time_spinbox)
@@ -644,7 +646,7 @@ class Florodoro(QWidget):
         self.reset_button.setDisabled(False)
 
         self.pause_button.setDisabled(False)
-        self.pause_button.setText(self.PAUSE_TEXT)
+        self.pause_button.setIcon(self.PAUSE_ICON)
 
         # study_done is set depending on whether we finished studying (are having a break) or not
         self.study_done = do_break
@@ -684,14 +686,14 @@ class Florodoro(QWidget):
         # stop the timer, if it's running
         if self.study_timer.isActive():
             self.study_timer.stop()
-            self.pause_button.setText(self.CONTINUE_TEXT)
+            self.pause_button.setIcon(self.CONTINUE_ICON)
             self.pause_time = datetime.now()
 
         # if not, resume
         else:
             self.ending_time += datetime.now() - self.pause_time
             self.study_timer.start()
-            self.pause_button.setText(self.PAUSE_TEXT)
+            self.pause_button.setIcon(self.PAUSE_ICON)
 
     def press_reset(self):
         """For some reason, pressing a button calls reset() with button_press being false."""
@@ -699,7 +701,7 @@ class Florodoro(QWidget):
 
     def reset(self, button_press=True):
         self.study_timer.stop()
-        self.pause_button.setText(self.PAUSE_TEXT)
+        self.pause_button.setIcon(self.PAUSE_ICON)
 
         self.main_label.setStyleSheet('')
         self.study_button.setDisabled(False)
