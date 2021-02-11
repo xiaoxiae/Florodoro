@@ -4,6 +4,7 @@ import sys
 import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
+from functools import partial
 from math import sin, pi, acos, degrees
 from random import random, uniform, choice, randint
 
@@ -488,7 +489,12 @@ class Florodoro(QWidget):
         self.INITIAL_TEXT = "Start!"
 
         self.menuBar = QMenuBar(self)
-        self.options_menu = self.menuBar.addMenu('Options')
+        self.presets_menu = self.menuBar.addMenu('&Presets')
+
+        self.presets_menu.addAction(QAction("Classic (25 : 5 : 4)", self, triggered=partial(self.load_preset, 25, 5, 4)))
+        self.presets_menu.addAction(QAction("Extended (45 : 10 : 2)", self, triggered=partial(self.load_preset, 90, 15, 2)))
+
+        self.options_menu = self.menuBar.addMenu('&Options')
 
         self.notify_menu = self.options_menu.addMenu("&Notify")
 
@@ -621,6 +627,12 @@ class Florodoro(QWidget):
         self.reset()
 
         self.show()
+
+    def load_preset(self, study_value: int, break_value: int, cycles: int):
+        """Load a pomodoro preset."""
+        self.study_time_spinbox.setValue(study_value)
+        self.break_time_spinbox.setValue(break_value)
+        self.cycles_spinbox.setValue(cycles)
 
     def start_break(self):
         """Starts the break, instead of the study."""
