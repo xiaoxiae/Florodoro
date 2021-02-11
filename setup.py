@@ -10,7 +10,7 @@ with open("requirements.txt") as f:
 setup(
     # information about the package
     name="florodoro",
-    version="0.2.6",
+    version="0.2.7",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="education pyqt5 plants pomodoro",
