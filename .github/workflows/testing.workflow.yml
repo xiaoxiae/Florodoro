@@ -15,4 +15,4 @@ jobs:
         with:
           password: ${{ secrets.pypi_token }}
           build: true
-          url: testpypi
+          url: "https://test.pypi.org/legacy/"
