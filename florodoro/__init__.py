@@ -473,6 +473,7 @@ class Florodoro(QWidget):
         self.RESET_ICON = qta.icon('fa5s.undo', color=self.TEXT_COLOR)
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
+        self.PLANT_TEXTS = ["Spruce", "Double spruce", "Maple", "Flower"]
 
         self.DEBUG = arguments.debug
 
@@ -526,7 +527,7 @@ class Florodoro(QWidget):
         self.plant_images = []
         self.plant_checkboxes = []
 
-        for plant in self.PLANTS:
+        for plant, text in zip(self.PLANTS, self.PLANT_TEXTS):
             self.plant_images.append(tempfile.NamedTemporaryFile(suffix=".svg"))
             tmp = plant()
             tmp.set_max_age(1)
@@ -537,6 +538,7 @@ class Florodoro(QWidget):
             action = QAction(
                 self,
                 icon=QIcon(self.plant_images[-1].name),
+                text=text,
                 checkable=True,
                 checked=True,
             )
