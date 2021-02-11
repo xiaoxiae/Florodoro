@@ -492,7 +492,7 @@ class Florodoro(QWidget):
         self.presets_menu = self.menuBar.addMenu('&Presets')
 
         self.presets_menu.addAction(QAction("Classic (25 : 5 : 4)", self, triggered=partial(self.load_preset, 25, 5, 4)))
-        self.presets_menu.addAction(QAction("Extended (45 : 10 : 2)", self, triggered=partial(self.load_preset, 90, 15, 2)))
+        self.presets_menu.addAction(QAction("Extended (45 : 10 : 2)", self, triggered=partial(self.load_preset, 45, 10, 2)))
 
         self.options_menu = self.menuBar.addMenu('&Options')
 
