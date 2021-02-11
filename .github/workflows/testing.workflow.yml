@@ -2,11 +2,8 @@ name: Publish to testing
 
 on:
   push:
-    branches:
-      - testing
     tags:
-      - '*'
-
+      - '*.*.*'
 
 jobs:
   deploy:
