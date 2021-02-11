@@ -13,6 +13,6 @@ jobs:
       - uses: actions/setup-python@v2
       - uses: casperdcl/deploy-pypi@v2
         with:
-          password: ${{ secrets.pypi_token }}
+          password: ${{ secrets.pypi_token_testing }}
           build: true
           url: "https://test.pypi.org/legacy/"
