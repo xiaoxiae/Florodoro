@@ -1,0 +1,21 @@
+name: Publish to testing
+
+on:
+  push:
+    branches:
+      - testing
+    tags:
+      - '*'
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - uses: casperdcl/deploy-pypi@v2
+        with:
+          password: ${{ secrets.pypi_token }}
+          build: true
+          url: testpypi
