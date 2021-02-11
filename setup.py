@@ -4,10 +4,13 @@ from os import path
 
 script_location = path.abspath(path.dirname(__file__))
 
+with open("requirements.txt") as f:
+    requirements = f.read().splitlines()
+
 setup(
     # information about the package
     name="florodoro",
-    version="0.2.4",
+    version="0.2.5",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="education pyqt5 plants pomodoro",
@@ -30,6 +33,6 @@ setup(
     entry_points={'console_scripts': ['florodoro=florodoro.__init__:run']},
 
     # requirements
-    install_requires=["pyqt5", "plyer"],
+    install_requires=requirements,
     python_requires='>=3.7.1',
 )
