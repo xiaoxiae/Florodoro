@@ -1,5 +1,6 @@
 import argparse
 import os
+import pickle
 import sys
 import tempfile
 from abc import ABC, abstractmethod
@@ -7,17 +8,18 @@ from datetime import datetime, timedelta
 from functools import partial
 from math import sin, pi, acos, degrees
 from random import random, uniform, choice, randint
+from typing import List, Optional
 
-from PyQt5.QtCore import QTimer, QTime, Qt, QDate, QDir, QUrl, QPointF, QSize, QRect, QRectF
-from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent, QFontDatabase, QFont
+import qtawesome as qta
+import yaml
+from PyQt5.QtChart import QChart, QChartView, QBarSet, QBarCategoryAxis, QStackedBarSeries
+from PyQt5.QtCore import QTimer, QTime, Qt, QDir, QUrl, QPointF, QSize, QRect, QRectF, QMargins
+from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKeyEvent
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
-    QMessageBox, QMenuBar, QStackedLayout, QFontDialog
+    QMessageBox, QMenuBar, QStackedLayout, QSlider, QFileDialog, QGridLayout, QFrame
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
-
-import qtawesome as qta
-
 from plyer import notification
 
 
@@ -92,32 +94,38 @@ class Plant(Drawable):
 
 class Flower(Plant):
 
-    def generateLeafs(self, count):
+    def generate_leafs(self, count):
+        """Generate the leafs of the flower."""
         # position / size coefficient (smaller/larger leafs) / rotation
         self.leafs = [(uniform(self.deficit_coefficient * 0.25, self.deficit_coefficient * 0.40), uniform(0.9, 1.1),
                        (((i - 1 / 2) * 2) if count == 2 else (-1 if random() < 0.5 else 1))) for i in
                       range(count)]
 
+    def flower_center_x(self, width):
+        """The x coordinate of the center of the flower."""
+        return width / 9 * self.x_coefficient
+
+    def flower_center_y(self, height):
+        """The y coordinate of the center of the flower."""
+        return height / 2.5 * self.deficit_coefficient * self.age_coefficient
+
+    def leaf_size(self, width):
+        """The size of the leaf."""
+        return width / 7 * self.deficit_coefficient * self.age_coefficient
+
     def generate(self):
         super().generate()
 
-        # the ending position of the flower
-        x_coefficient = uniform(0.4, 1) * (-1 if random() < 0.5 else 1)
-        self.x_position = lambda width: width / 9 * x_coefficient
-        self.y_position = lambda height: height / 2.5 * self.deficit_coefficient * self.age_coefficient
+        # the ending x position of the flower -- so it tilts one way or another
+        self.x_coefficient = uniform(0.4, 1) * (-1 if random() < 0.5 else 1)
 
-        # the size of the leafs
-        self.leaf_size = lambda width: width / 7 * self.deficit_coefficient * self.age_coefficient
+        self.generate_leafs(2)
 
-        # always generate 2 leafs
-        self.generateLeafs(2)
-
-        # the width of the stem
         self.stem_width = uniform(3.5, 4) * self.age_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
-        self.x = self.x_position(width) * smoothen_curve(self.age)
-        self.y = self.y_position(height) * smoothen_curve(self.age)
+        self.x = self.flower_center_x(width) * smoothen_curve(self.age)
+        self.y = self.flower_center_y(height) * smoothen_curve(self.age)
 
         painter.setPen(QPen(self.green_color, self.stem_width * smoothen_curve(self.age)))
 
@@ -157,6 +165,8 @@ class Flower(Plant):
 
 
 class CircularFlower(Flower):
+    """A class for creating a flower."""
+
     # colors of the Florodoro logo
     colors = [
         QColor(139, 139, 255),  # blue-ish
@@ -204,6 +214,10 @@ class CircularFlower(Flower):
 
         painter.drawPath(pellet)
 
+    def pellet_size(self, width):
+        """Return the size of the pellet."""
+        return width / 9 * self.deficit_coefficient * self.age_coefficient
+
     def generate(self):
         super().generate()
 
@@ -211,8 +225,6 @@ class CircularFlower(Flower):
         self.color = choice(self.colors)
 
         self.number_of_pellets = randint(5, 7)
-
-        self.pellet_size = lambda width: width / 9 * self.deficit_coefficient * self.age_coefficient
 
         # the center of the plant is smaller, compared to other pellet sizes
         self.center_pellet_smaller_coefficient = uniform(0.75, 0.85)
@@ -261,19 +273,23 @@ class Tree(Plant):
                               uniform(0.4, 0.6))) for i in
                          range(count)]
 
+    def base_width(self, width):
+        return width / 15 * self.deficit_coefficient * self.age_coefficient
+
+    def base_height(self, height):
+        return height / 1.7 * self.deficit_coefficient * self.age_coefficient
+
+    def branch_width(self, width):
+        return width / 18 * self.deficit_coefficient * self.age_coefficient
+
+    def branch_height(self, height):
+        return height / 2.7 * self.deficit_coefficient * self.age_coefficient
+
     def generate(self):
         super().generate()
 
         # generate somewhere between 1 and 2 branches
         self.generateBranches(round(uniform(1, 2 * self.age_coefficient)))
-
-        # the width/height of the main branch
-        self.base_width = lambda width: width / 15 * self.deficit_coefficient * self.age_coefficient
-        self.base_height = lambda height: height / 1.7 * self.deficit_coefficient * self.age_coefficient
-
-        # the width/height of the other branches
-        self.branch_width = lambda width: width / 18 * self.deficit_coefficient * self.age_coefficient
-        self.branch_height = lambda height: height / 2.7 * self.deficit_coefficient * self.age_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setBrush(QBrush(self.brown_color))
@@ -300,6 +316,7 @@ class Tree(Plant):
 
 
 class OrangeTree(Tree):
+    """A tree with orange ellipses as leafs."""
     orange_color = QColor(243, 148, 30)
 
     def generate(self):
@@ -353,13 +370,19 @@ class OrangeTree(Tree):
 
 
 class GreenTree(Tree):
+    """A tree with a green triangle as leafs."""
+
+    def green_width(self, width):
+        return width / 3.2 * self.deficit_coefficient * self.age_coefficient
+
+    def green_height(self, height):
+        return height / 1.5 * self.deficit_coefficient * self.age_coefficient
+
+    def offset(self, height):
+        return min(height * .95, self.base_height(height * 0.3 * smoothen_curve(self.age)))
+
     def generate(self):
         super().generate()
-
-        self.green_width = lambda width: width / 3.2 * self.deficit_coefficient * self.age_coefficient
-        self.green_height = lambda height: height / 1.5 * self.deficit_coefficient * self.age_coefficient
-
-        self.offset = lambda height: min(height * .95, self.base_height(height * 0.3 * smoothen_curve(self.age)))
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
@@ -373,12 +396,16 @@ class GreenTree(Tree):
 
 
 class DoubleGreenTree(GreenTree):
+    """A tree with a double green triangle as leafs."""
+
+    def second_green_width(self, width):
+        return width / 3.5 * self.deficit_coefficient * self.age_coefficient
+
+    def second_green_height(self, height):
+        return height / 2.4 * self.deficit_coefficient * self.age_coefficient
 
     def generate(self):
         super().generate()
-
-        self.second_green_width = lambda width: width / 3.5 * self.deficit_coefficient * self.age_coefficient
-        self.second_green_height = lambda height: height / 2.4 * self.deficit_coefficient * self.age_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
@@ -428,6 +455,271 @@ class Canvas(QWidget):
         painter.end()
 
 
+class Statistics(QWidget):
+    """A statistics widget that displays information about studied time, shows grown plants, etc..."""
+
+    def __init__(self, history, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.history = history
+
+        chart = self.generate_chart()
+
+        chart.setMinimumWidth(400)
+        chart.setMinimumHeight(200)
+
+        image_layout = QVBoxLayout()
+
+        self.plant_study = None  # the study record the plant is a part of
+        self.plant: Optional[Plant] = None  # the plant being displayed
+
+        self.plant_date_label = QLabel(self)
+        self.plant_date_label.setAlignment(Qt.AlignTop)
+
+        self.plant_duration_label = QLabel(self)
+        self.plant_duration_label.setAlignment(Qt.AlignRight)
+
+        self.canvas = Canvas(self)
+        self.canvas.setMinimumWidth(200)
+        self.canvas.setMinimumHeight(200)
+
+        stacked_layout = QStackedLayout()
+        stacked_layout.addWidget(self.canvas)
+        stacked_layout.addWidget(self.plant_date_label)
+        stacked_layout.addWidget(self.plant_duration_label)
+        stacked_layout.setStackingMode(QStackedLayout.StackAll)
+
+        image_control = QHBoxLayout()
+
+        text_color = self.palette().text().color()
+        self.left_button = QPushButton(self, clicked=self.left, icon=qta.icon('fa5s.angle-left', color=text_color))
+        self.age_slider = QSlider(Qt.Horizontal, minimum=0, maximum=1000, value=1000,
+                                  valueChanged=self.sliderValueChanged)
+        self.right_button = QPushButton(self, clicked=self.right, icon=qta.icon('fa5s.angle-right', color=text_color))
+        self.save_button = QPushButton(self, clicked=self.save, icon=qta.icon('fa5s.download', color=text_color))
+
+        image_control.addWidget(self.left_button)
+        image_control.addWidget(self.right_button)
+        image_control.addSpacing(10)
+        image_control.addWidget(self.age_slider)
+        image_control.addSpacing(10)
+        image_control.addWidget(self.save_button)
+
+        image_layout.addLayout(stacked_layout)
+        image_layout.addLayout(image_control)
+        image_layout.setContentsMargins(10, 10, 10, 10)
+
+        separator = QFrame()
+        separator.setStyleSheet(f"background-color: {self.palette().text().color().name()}")
+        separator.setFixedWidth(1)
+
+        main_layout = QGridLayout()
+        main_layout.setHorizontalSpacing(20)
+        main_layout.setColumnStretch(0, 1)
+        main_layout.setColumnStretch(2, 0)
+        main_layout.addWidget(chart, 0, 0)
+        main_layout.addWidget(separator, 0, 1)
+        main_layout.addLayout(image_layout, 0, 2)
+
+        self.setLayout(main_layout)
+
+        self.move()
+
+        self.refresh()
+
+    def generate_chart(self):
+        """Generate the bar graph."""
+        # TODO: start here when custom tags are implemented
+        self.tags = [QBarSet(tag) for tag in ["Study"]]
+
+        series = QStackedBarSeries()
+
+        for set in self.tags:
+            series.append(set)
+
+        self.chart = QChart()
+        self.chart.addSeries(series)
+        self.chart.setTitle("Total time studied (minutes per day)")
+
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        axis = QBarCategoryAxis()
+        axis.append(days)
+        axis.setMinorGridLineVisible(False)
+        axis.setGridLineVisible(False)
+
+        self.chart.createDefaultAxes()
+        self.chart.setAxisX(axis, series)
+        self.chart.legend().setAlignment(Qt.AlignBottom)
+        self.chart.legend().setVisible(False)
+        self.chart.setTheme(QChart.ChartThemeQt)
+        self.chart.setBackgroundVisible(False)
+        self.chart.setBackgroundRoundness(0)
+        self.chart.setMargins(QMargins(0, 0, 0, 0))
+
+        yAxis = self.chart.axes(Qt.Vertical)[0]
+        yAxis.setGridLineVisible(False)
+        yAxis.setLabelFormat("%d")
+
+        chartView = QChartView(self.chart)
+        chartView.setRenderHint(QPainter.Antialiasing)
+
+        return chartView
+
+    def sliderValueChanged(self):
+        """Called when the slider value has changed."""
+        if self.plant is not None:
+            self.plant.set_current_age(self.age_slider.value() / self.age_slider.maximum())
+            self.canvas.update()
+
+    def refresh(self):
+        """Refresh the labels."""
+        # clear tag values
+        for tag in self.tags:
+            tag.remove(0, tag.count())
+
+        study_minutes = [0] * 7
+        for study in self.history.get_studies():
+            # TODO: don't just crash
+            study_minutes[study["date"].weekday()] += study["duration"]
+
+        for minutes in study_minutes:
+            self.tags[0] << minutes
+
+        # manually set
+        yAxis = self.chart.axes(Qt.Vertical)[0]
+        yAxis.setRange(0, max(study_minutes))
+
+    def left(self):
+        """Move to the left (newer) picture."""
+        self.move(-1)
+
+    def right(self):
+        """Move to the right (older) picture."""
+        self.move(1)
+
+    def move(self, delta: int = 0):
+        """Move to another plant by delta. If no plant is currently being displayed, pick the latest one."""
+        studies = self.history.get_studies()
+
+        # if there are no plants to display, don't do anything
+        if len(studies) == 0:
+            return
+
+        # if no plant is being displayed or 0 is provided, pick the last one
+        if self.plant is None or delta == 0:
+            index = -1
+
+        # if one is, find it and move by delta
+        else:
+            current_index = self.history.get_studies().index(self.plant_study)
+
+            index = max(min(current_index + delta, len(studies) - 1), 0)
+
+        # TODO: check for correct formatting, don't just crash if it's wrong
+        self.plant = pickle.loads(studies[index]["plant"])
+        self.plant_study = studies[index]
+
+        # TODO: check for correct formatting, don't just crash if it's wrong
+        self.plant_date_label.setText(self.plant_study["date"].strftime("%-d/%-m/%Y"))
+        self.plant_duration_label.setText(f"{int(self.plant_study['duration'])} minutes")
+
+        self.canvas.set_drawable(self.plant)
+        self.sliderValueChanged()  # it didn't, but the code should act as if it did
+
+    def save(self):
+        """Save the current state of the plant to a file."""
+        if self.plant is not None:
+            name, _ = QFileDialog.getSaveFileName(self, 'Save File', "", "SVG files (*.svg)")
+
+            if not name.endswith(".svg"):
+                name += ".svg"
+
+            self.plant.save(name, 1000, 1000)
+
+
+class History:
+    """A class for working with the Florodoro history."""
+
+    def __init__(self, path):
+        self.path = path
+
+        self.history = {}
+        self.load()
+
+    def save(self):
+        """Save the current history to the history file."""
+        with open(self.path, "w") as f:
+            f.write(yaml.dump(self.history))
+
+    def load(self):
+        """Load the history from the history file."""
+        if os.path.exists(self.path):
+            with open(self.path) as file:
+                self.history = yaml.load(file, Loader=yaml.FullLoader)
+
+        # create the activities that we save
+        for activity in ("breaks", "studies"):
+            if activity not in self.history:
+                self.history[activity] = []
+
+    def add_break(self, date, duration: int):
+        """Add a break to the history."""
+        self.history["breaks"].append({"date": date, "duration": duration})
+        self.save()
+
+    def add_study(self, date, duration: int, current_cycle: int, total_cycles: int, plant: Plant):
+        """Add a break to the history."""
+        self.history["studies"].append({
+            "date": date,
+            "duration": duration,
+            "current_cycle": current_cycle,
+            "total_cycles": total_cycles,
+            "plant": pickle.dumps(plant)
+        })
+        self.save()
+
+    def total_studied_time(self) -> int:
+        """Return the total minutes of studied time."""
+        return self._total_time("studies")
+
+    def total_break_time(self) -> int:
+        """Return the total minutes of studied time."""
+        return self._total_time("breaks")
+
+    def _total_time(self, activity_type: str):
+        """Calculate the total time of something."""
+        # TODO: check for correct formatting, don't just crash if it's wrong
+        total = 0
+        for study in self.history[activity_type]:
+            total += study["duration"]
+
+        return total
+
+    def total_plants_grown(self) -> int:
+        """Return the total number of plants grown."""
+        # TODO: check for correct formatting, don't just crash if it's wrong
+        count = 0
+        for study in self.get_studies():
+            if study["plant"] is not None:
+                count += 1
+
+        return count
+
+    def get_studies(self, sort=True) -> List:
+        """Return all of the studies. Possibly sort on date."""
+        studies = self.history["studies"]
+
+        # TODO: check for correct formatting, don't just crash if it's wrong
+        if sort:
+            studies = sorted(studies, key=lambda x: x["date"])
+
+        return studies
+
+    def get_breaks(self) -> List:
+        """Return all of the studies."""
+        return self.history["breaks"]
+
+
 class Florodoro(QWidget):
 
     def parseArguments(self):
@@ -459,12 +751,16 @@ class Florodoro(QWidget):
 
         self.ROOT_FOLDER = "~/.florodoro/"
 
+        self.history = History(os.path.expanduser(self.ROOT_FOLDER) + "history.yaml")
+
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
         self.IMAGE_FOLDER = "images/"
 
         self.TEXT_COLOR = self.palette().text().color()
         self.BREAK_COLOR = "#B37700"
+
+        self.APP_NAME = "Florodoro"
 
         self.STUDY_ICON = qta.icon('fa5s.book', color=self.TEXT_COLOR)
         self.BREAK_ICON = qta.icon('fa5s.coffee', color=self.BREAK_COLOR)
@@ -473,6 +769,7 @@ class Florodoro(QWidget):
         self.RESET_ICON = qta.icon('fa5s.undo', color=self.TEXT_COLOR)
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
+        self.PLANT_TEXTS = ["Spruce", "Double spruce", "Maple", "Flower"]
 
         self.DEBUG = arguments.debug
 
@@ -491,8 +788,10 @@ class Florodoro(QWidget):
         self.menuBar = QMenuBar(self)
         self.presets_menu = self.menuBar.addMenu('&Presets')
 
-        self.presets_menu.addAction(QAction("Classic (25 : 5 : 4)", self, triggered=partial(self.load_preset, 25, 5, 4)))
-        self.presets_menu.addAction(QAction("Extended (45 : 10 : 2)", self, triggered=partial(self.load_preset, 45, 10, 2)))
+        self.presets_menu.addAction(
+            QAction("Classic (25 : 5 : 4)", self, triggered=partial(self.load_preset, 25, 5, 4)))
+        self.presets_menu.addAction(
+            QAction("Extended (45 : 10 : 2)", self, triggered=partial(self.load_preset, 45, 10, 2)))
 
         self.options_menu = self.menuBar.addMenu('&Options')
 
@@ -506,6 +805,14 @@ class Florodoro(QWidget):
 
         if self.DEBUG:
             self.sound_action.setChecked(False)
+
+        self.menuBar.addAction(
+            QAction(
+                "&Statistics",
+                self,
+                triggered=lambda: self.statistics.show() if self.statistics.isHidden() else self.statistics.hide()
+            )
+        )
 
         self.menuBar.addAction(
             QAction(
@@ -526,7 +833,7 @@ class Florodoro(QWidget):
         self.plant_images = []
         self.plant_checkboxes = []
 
-        for plant in self.PLANTS:
+        for plant, text in zip(self.PLANTS, self.PLANT_TEXTS):
             self.plant_images.append(tempfile.NamedTemporaryFile(suffix=".svg"))
             tmp = plant()
             tmp.set_max_age(1)
@@ -537,6 +844,7 @@ class Florodoro(QWidget):
             action = QAction(
                 self,
                 icon=QIcon(self.plant_images[-1].name),
+                text=text,
                 checkable=True,
                 checked=True,
             )
@@ -544,9 +852,9 @@ class Florodoro(QWidget):
             self.plant_menu.addAction(action)
             self.plant_checkboxes.append(action)
 
-        # there there is currently a plant that is being grown
-        # initially False; note that pressing start doesn't set this to true if all plants are deselected!
-        self.plant_growing = False
+        # the current plant that we're growing
+        # if set to none, no plant is growing
+        self.plant = None
 
         self.menuBar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Maximum)
 
@@ -556,6 +864,8 @@ class Florodoro(QWidget):
         main_vertical_layout.addWidget(self.menuBar)
 
         self.canvas = Canvas(self)
+
+        self.statistics = Statistics(self.history)
 
         font = self.font()
         font.setPointSize(100)
@@ -575,7 +885,7 @@ class Florodoro(QWidget):
         self.study_time_spinbox = QSpinBox(self, prefix="Study for: ", suffix="min.", minimum=1, maximum=self.MAX_TIME,
                                            value=self.DEFAULT_STUDY_TIME,
                                            singleStep=self.STEP)
-        self.break_time_spinbox = QSpinBox(self, prefix="Rest for: ", suffix="min.", minimum=1, maximum=self.MAX_TIME,
+        self.break_time_spinbox = QSpinBox(self, prefix="Break for: ", suffix="min.", minimum=1, maximum=self.MAX_TIME,
                                            value=self.DEFAULT_BREAK_TIME,
                                            singleStep=self.STEP)
         self.cycles_spinbox = QSpinBox(self, prefix="Cycles: ", minimum=1, value=1)
@@ -594,6 +904,7 @@ class Florodoro(QWidget):
 
         main_vertical_layout.addLayout(stacked_layout)
 
+        self.setStyleSheet("")
         self.break_time_spinbox.setStyleSheet(f'color:{self.BREAK_COLOR};')
 
         self.study_button = QPushButton(self, clicked=self.start, icon=self.STUDY_ICON)
@@ -621,7 +932,7 @@ class Florodoro(QWidget):
         self.player = QMediaPlayer(self)
 
         self.setWindowIcon(QIcon(self.IMAGE_FOLDER + "icon.svg"))
-        self.setWindowTitle("Florodoro")
+        self.setWindowTitle(self.APP_NAME)
 
         # set initial UI state
         self.reset()
@@ -687,9 +998,8 @@ class Florodoro(QWidget):
                 self.canvas.set_drawable(self.plant)
                 self.plant.set_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
                 self.plant.set_current_age(0)
-                self.plant_growing = True
             else:
-                self.plant_growing = False
+                self.plant = None
 
         self.study_timer.stop()  # it could be running - we could be currently in a break
         self.study_timer.start()
@@ -721,7 +1031,7 @@ class Florodoro(QWidget):
         self.pause_button.setDisabled(True)
         self.reset_button.setDisabled(True)
 
-        if self.plant_growing:
+        if self.plant is not None:
             self.plant.set_current_age(0)
 
         # pressing study > reset > break with cycles > 2 continues doing the cycles after end of break
@@ -763,7 +1073,7 @@ class Florodoro(QWidget):
 
     def show_notification(self, message: str):
         """Show the specified notification using plyer."""
-        notification.notify("Florodoro", message, "Florodoro", os.path.abspath(self.IMAGE_FOLDER + "icon.svg"))
+        notification.notify(self.APP_NAME, message, self.APP_NAME, os.path.abspath(self.IMAGE_FOLDER + "icon.svg"))
 
     def update_cycles_label(self):
         if self.initial_cycles != 1 and not self.study_done:
@@ -783,6 +1093,9 @@ class Florodoro(QWidget):
             if self.study_done:
                 self.reset(button_press=False)
 
+                self.history.add_break(datetime.now(), self.total_time // 60)
+                self.statistics.refresh()
+
                 if self.sound_action.isChecked():
                     self.play_sound("break_done")
 
@@ -797,31 +1110,25 @@ class Florodoro(QWidget):
                 else:
                     self.cycle_label.setText('')
             else:
-                self.start_break()
+                date = datetime.now()
 
-                name = QDate.currentDate().toString(Qt.ISODate) + "|" + QTime.currentTime().toString("hh:mm:ss")
-
-                if self.DEBUG:
-                    with open(os.path.expanduser(self.ROOT_FOLDER) + "florodoro.log", "a") as f:
-                        f.write(name + " - finished studying for " + str(self.total_time // 60) + " minutes." + "\n")
-
-                if self.plant_growing:
-                    path = os.path.expanduser(self.ROOT_FOLDER) + self.PLANTS_FOLDER
-
-                    if not os.path.exists(path):
-                        os.makedirs(path)
-
-                    self.canvas.save(path + name + ".svg")
+                self.history.add_study(date, self.total_time // 60, self.initial_cycles - self.cycles + 1,
+                                       self.initial_cycles, self.plant)
+                self.statistics.move()  # move to the last plant
+                self.statistics.refresh()
 
                 if self.sound_action.isChecked():
                     self.play_sound("study_done")
 
                 if self.popup_action.isChecked():
                     self.show_notification("Studying finished, take a break!")
+
+                self.start_break()
+
         else:
             # if there is leftover time and we haven't finished studying, grow the plant
             if not self.study_done:
-                if self.plant_growing:
+                if self.plant is not None:
                     self.plant.set_current_age(1 - (leftover_time / self.total_time))
 
                 self.canvas.update()
