@@ -18,7 +18,7 @@ from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKe
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
-    QMessageBox, QMenuBar, QStackedLayout, QSlider, QFileDialog, QGridLayout, QFrame
+    QMessageBox, QMenuBar, QStackedLayout, QSlider, QFileDialog, QGridLayout, QFrame, QWidgetAction
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 from plyer import notification
 
@@ -474,20 +474,22 @@ class Statistics(QWidget):
         self.plant: Optional[Plant] = None  # the plant being displayed
 
         self.plant_date_label = QLabel(self)
-        self.plant_date_label.setAlignment(Qt.AlignTop)
+        self.plant_date_label.setAlignment(Qt.AlignLeft)
 
         self.plant_duration_label = QLabel(self)
         self.plant_duration_label.setAlignment(Qt.AlignRight)
+
+        label_layout = QHBoxLayout()
+        label_layout.addWidget(self.plant_date_label)
+        label_layout.addWidget(self.plant_duration_label)
 
         self.canvas = Canvas(self)
         self.canvas.setMinimumWidth(200)
         self.canvas.setMinimumHeight(200)
 
-        stacked_layout = QStackedLayout()
+        stacked_layout = QVBoxLayout()
+        stacked_layout.addLayout(label_layout)
         stacked_layout.addWidget(self.canvas)
-        stacked_layout.addWidget(self.plant_date_label)
-        stacked_layout.addWidget(self.plant_duration_label)
-        stacked_layout.setStackingMode(QStackedLayout.StackAll)
 
         image_control = QHBoxLayout()
 
@@ -544,8 +546,6 @@ class Statistics(QWidget):
         days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         axis = QBarCategoryAxis()
         axis.append(days)
-        axis.setMinorGridLineVisible(False)
-        axis.setGridLineVisible(False)
 
         self.chart.createDefaultAxes()
         self.chart.setAxisX(axis, series)
@@ -555,10 +555,18 @@ class Statistics(QWidget):
         self.chart.setBackgroundVisible(False)
         self.chart.setBackgroundRoundness(0)
         self.chart.setMargins(QMargins(0, 0, 0, 0))
+        self.chart.setTitleBrush(QBrush(self.palette().text().color()))
 
         yAxis = self.chart.axes(Qt.Vertical)[0]
         yAxis.setGridLineVisible(False)
         yAxis.setLabelFormat("%d")
+        yAxis.setLinePenColor(self.palette().text().color())
+        yAxis.setLabelsColor(self.palette().text().color())
+
+        xAxis = self.chart.axes(Qt.Horizontal)[0]
+        xAxis.setGridLineVisible(False)
+        xAxis.setLinePenColor(self.palette().text().color())
+        xAxis.setLabelsColor(self.palette().text().color())
 
         chartView = QChartView(self.chart)
         chartView.setRenderHint(QPainter.Antialiasing)
@@ -720,6 +728,22 @@ class History:
         return self.history["breaks"]
 
 
+class SpacedQWidget(QWidget):
+    """A dummy class for adding spacing to the left and right of a QWidget. Used in a QMenuBar's QWidgetAction, because
+    I haven't found a way to add spacing to the left/right of a QSlider."""
+
+    def __init__(self, widget: QWidget, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        layout = QHBoxLayout()
+        layout.addSpacing(5)
+        layout.addWidget(widget)
+        layout.addSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.setLayout(layout)
+
+
 class Florodoro(QWidget):
 
     def parseArguments(self):
@@ -751,7 +775,10 @@ class Florodoro(QWidget):
 
         self.ROOT_FOLDER = "~/.florodoro/"
 
-        self.history = History(os.path.expanduser(self.ROOT_FOLDER) + "history.yaml")
+        self.HISTORY_FILE_PATH = os.path.expanduser(self.ROOT_FOLDER) + "history.yaml"
+        self.CONFIGURATION_FILE_PATH = os.path.expanduser(self.ROOT_FOLDER) + "configuration.yaml"
+
+        self.history = History(self.HISTORY_FILE_PATH)
 
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
@@ -769,7 +796,7 @@ class Florodoro(QWidget):
         self.RESET_ICON = qta.icon('fa5s.undo', color=self.TEXT_COLOR)
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
-        self.PLANT_TEXTS = ["Spruce", "Double spruce", "Maple", "Flower"]
+        self.PLANT_NAMES = ["Spruce", "Double spruce", "Maple", "Flower"]
 
         self.DEBUG = arguments.debug
 
@@ -797,8 +824,16 @@ class Florodoro(QWidget):
 
         self.notify_menu = self.options_menu.addMenu("&Notify")
 
-        self.sound_action = QAction("&Sound", self, checkable=True, checked=True)
+        self.sound_action = QAction("&Sound", self, checkable=True, checked=True,
+                                    triggered=lambda _: self.volume_slider.setDisabled(
+                                        not self.sound_action.isChecked()))
+
         self.notify_menu.addAction(self.sound_action)
+
+        self.volume_slider = QSlider(Qt.Horizontal, minimum=0, maximum=100, value=85)
+        slider_action = QWidgetAction(self)
+        slider_action.setDefaultWidget(SpacedQWidget(self.volume_slider))
+        self.notify_menu.addAction(slider_action)
 
         self.popup_action = QAction("&Pop-up", self, checkable=True, checked=True)
         self.notify_menu.addAction(self.popup_action)
@@ -833,7 +868,8 @@ class Florodoro(QWidget):
         self.plant_images = []
         self.plant_checkboxes = []
 
-        for plant, text in zip(self.PLANTS, self.PLANT_TEXTS):
+        # dynamically create widgets for each plant
+        for plant, name in zip(self.PLANTS, self.PLANT_NAMES):
             self.plant_images.append(tempfile.NamedTemporaryFile(suffix=".svg"))
             tmp = plant()
             tmp.set_max_age(1)
@@ -841,13 +877,10 @@ class Florodoro(QWidget):
             tmp.generate()
             tmp.save(self.plant_images[-1].name, 200, 200)
 
-            action = QAction(
-                self,
-                icon=QIcon(self.plant_images[-1].name),
-                text=text,
-                checkable=True,
-                checked=True,
-            )
+            setattr(self.__class__, name,
+                    QAction(self, icon=QIcon(self.plant_images[-1].name), text=name, checkable=True, checked=True))
+
+            action = getattr(self.__class__, name)
 
             self.plant_menu.addAction(action)
             self.plant_checkboxes.append(action)
@@ -937,7 +970,53 @@ class Florodoro(QWidget):
         # set initial UI state
         self.reset()
 
+        # a list of name, getter and setter things to load/save when the app opens/closes
+        # also dynamically get settings for selecting/unselecting plants
+        self.CONFIGURATION_ATTRIBUTES = [("study-time", self.study_time_spinbox.value,
+                                          self.study_time_spinbox.setValue),
+                                         ("break-time", self.break_time_spinbox.value,
+                                          self.break_time_spinbox.setValue),
+                                         ("cycles", self.cycles_spinbox.value, self.cycles_spinbox.setValue),
+                                         ("sound", self.sound_action.isChecked, self.sound_action.setChecked),
+                                         ("sound-volume", self.volume_slider.value, self.volume_slider.setValue),
+                                         ("pop-ups", self.popup_action.isChecked, self.popup_action.setChecked),
+                                         ] + [(name.lower(), getattr(self.__class__, name).isChecked,
+                                               getattr(self.__class__, name).setChecked) for _, name in
+                                              zip(self.PLANTS, self.PLANT_NAMES)]
+
+        self.load_settings()
+
         self.show()
+
+    def load_settings(self):
+        """Loads the settings file (if it exists)."""
+
+        if os.path.exists(self.CONFIGURATION_FILE_PATH):
+            with open(self.CONFIGURATION_FILE_PATH) as file:
+                configuration = yaml.load(file, Loader=yaml.FullLoader)
+
+                if not isinstance(configuration, dict):
+                    return
+
+                for key in configuration:
+                    for name, _, setter in self.CONFIGURATION_ATTRIBUTES:
+                        if key == name:
+                            setter(configuration[key])
+
+    def save_settings(self):
+        """Saves the settings file (if it exists)."""
+        with open(self.CONFIGURATION_FILE_PATH, 'w') as file:
+            configuration = {}
+
+            for name, getter, _ in self.CONFIGURATION_ATTRIBUTES:
+                configuration[name] = getter()
+
+            file.write(yaml.dump(configuration))
+
+    def closeEvent(self, event):
+        """Called when the app is being closed. Overridden to also save Florodoro settings."""
+        self.save_settings()
+        super().closeEvent(event)
 
     def load_preset(self, study_value: int, break_value: int, cycles: int):
         """Load a pomodoro preset."""
@@ -1069,6 +1148,7 @@ class Florodoro(QWidget):
                 url = QUrl.fromLocalFile(path)
                 content = QMediaContent(url)
                 self.player.setMedia(content)
+                self.player.setVolume(self.volume_slider.value())
                 self.player.play()
 
     def show_notification(self, message: str):
