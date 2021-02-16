@@ -727,6 +727,7 @@ class History:
         """Return all of the studies."""
         return self.history["breaks"]
 
+
 class SpacedQWidget(QWidget):
     """A dummy class for adding spacing to the left and right of a QWidget. Used in a QMenuBar's QWidgetAction, because
     I haven't found a way to add spacing to the left/right of a QSlider."""
@@ -821,10 +822,13 @@ class Florodoro(QWidget):
 
         self.notify_menu = self.options_menu.addMenu("&Notify")
 
-        self.sound_action = QAction("&Sound", self, checkable=True, checked=True, triggered=self.sound_action_toggle)
+        self.sound_action = QAction("&Sound", self, checkable=True, checked=True,
+                                    triggered=lambda _: self.volume_slider.setDisabled(
+                                        not self.sound_action.isChecked()))
+
         self.notify_menu.addAction(self.sound_action)
 
-        self.volume_slider = QSlider(Qt.Horizontal, minimum=0, maximum=100)
+        self.volume_slider = QSlider(Qt.Horizontal, minimum=0, maximum=100, value=85)
         slider_action = QWidgetAction(self)
         slider_action.setDefaultWidget(SpacedQWidget(self.volume_slider))
         self.notify_menu.addAction(slider_action)
@@ -967,10 +971,6 @@ class Florodoro(QWidget):
         self.reset()
 
         self.show()
-
-    def sound_action_toggle(self):
-        """Called when the sound action is toggled. Enables/disables the volume slider."""
-        self.volume_slider.setDisabled(not self.sound_action.isChecked())
 
     def load_preset(self, study_value: int, break_value: int, cycles: int):
         """Load a pomodoro preset."""
