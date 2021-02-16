@@ -26,9 +26,8 @@ If you'd like to always have the latest (unstable) version, install from TestPyP
 ### Bottom bar
 - **Study for: <>** -- how long to study for
 - **Break for: <>** -- how long to break after study
-- **Cycles: <>** -- how many times to repeat study-break
-
-- **Book** -- start the study session
-- **Coffee** -- start a break
-- **Pause/continue** -- pause/continue an ongoing study/break
-- **Reset** -- reset everything
+- **Icon: Cycles: <>** -- how many times to repeat study-break
+- **Icon: Book** -- start the study session
+- **Icon: Coffee** -- start a break
+- **Icon: Pause/continue** -- pause/continue an ongoing study/break
+- **Icon: Reset** -- reset everything
