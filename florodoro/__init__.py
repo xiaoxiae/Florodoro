@@ -775,7 +775,10 @@ class Florodoro(QWidget):
 
         self.ROOT_FOLDER = "~/.florodoro/"
 
-        self.history = History(os.path.expanduser(self.ROOT_FOLDER) + "history.yaml")
+        self.HISTORY_FILE_PATH = os.path.expanduser(self.ROOT_FOLDER) + "history.yaml"
+        self.CONFIGURATION_FILE_PATH = os.path.expanduser(self.ROOT_FOLDER) + "configuration.yaml"
+
+        self.history = History(self.HISTORY_FILE_PATH)
 
         self.SOUNDS_FOLDER = "sounds/"
         self.PLANTS_FOLDER = "plants/"
@@ -793,7 +796,7 @@ class Florodoro(QWidget):
         self.RESET_ICON = qta.icon('fa5s.undo', color=self.TEXT_COLOR)
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
-        self.PLANT_TEXTS = ["Spruce", "Double spruce", "Maple", "Flower"]
+        self.PLANT_NAMES = ["Spruce", "Double spruce", "Maple", "Flower"]
 
         self.DEBUG = arguments.debug
 
@@ -866,7 +869,8 @@ class Florodoro(QWidget):
         self.plant_images = []
         self.plant_checkboxes = []
 
-        for plant, text in zip(self.PLANTS, self.PLANT_TEXTS):
+        # dynamically create widgets for each plant
+        for plant, name in zip(self.PLANTS, self.PLANT_NAMES):
             self.plant_images.append(tempfile.NamedTemporaryFile(suffix=".svg"))
             tmp = plant()
             tmp.set_max_age(1)
@@ -874,13 +878,10 @@ class Florodoro(QWidget):
             tmp.generate()
             tmp.save(self.plant_images[-1].name, 200, 200)
 
-            action = QAction(
-                self,
-                icon=QIcon(self.plant_images[-1].name),
-                text=text,
-                checkable=True,
-                checked=True,
-            )
+            setattr(self.__class__, name,
+                    QAction(self, icon=QIcon(self.plant_images[-1].name), text=name, checkable=True, checked=True))
+
+            action = getattr(self.__class__, name)
 
             self.plant_menu.addAction(action)
             self.plant_checkboxes.append(action)
@@ -970,7 +971,53 @@ class Florodoro(QWidget):
         # set initial UI state
         self.reset()
 
+        # a list of name, getter and setter things to load/save when the app opens/closes
+        # also dynamically get settings for selecting/unselecting plants
+        self.CONFIGURATION_ATTRIBUTES = [("study-time", self.study_time_spinbox.value,
+                                          self.study_time_spinbox.setValue),
+                                         ("break-time", self.break_time_spinbox.value,
+                                          self.break_time_spinbox.setValue),
+                                         ("cycles", self.cycles_spinbox.value, self.cycles_spinbox.setValue),
+                                         ("sound", self.sound_action.isChecked, self.sound_action.setChecked),
+                                         ("sound-volume", self.volume_slider.value, self.volume_slider.setValue),
+                                         ("pop-ups", self.popup_action.isChecked, self.popup_action.setChecked),
+                                         ] + [(name.lower(), getattr(self.__class__, name).isChecked,
+                                               getattr(self.__class__, name).setChecked) for _, name in
+                                              zip(self.PLANTS, self.PLANT_NAMES)]
+
+        self.load_settings()
+
         self.show()
+
+    def load_settings(self):
+        """Loads the settings file (if it exists)."""
+
+        if os.path.exists(self.CONFIGURATION_FILE_PATH):
+            with open(self.CONFIGURATION_FILE_PATH) as file:
+                configuration = yaml.load(file, Loader=yaml.FullLoader)
+
+                if not isinstance(configuration, dict):
+                    return
+
+                for key in configuration:
+                    for name, _, setter in self.CONFIGURATION_ATTRIBUTES:
+                        if key == name:
+                            setter(configuration[key])
+
+    def save_settings(self):
+        """Saves the settings file (if it exists)."""
+        with open(self.CONFIGURATION_FILE_PATH, 'w') as file:
+            configuration = {}
+
+            for name, getter, _ in self.CONFIGURATION_ATTRIBUTES:
+                configuration[name] = getter()
+
+            file.write(yaml.dump(configuration))
+
+    def closeEvent(self, event):
+        """Called when the app is being closed. Overridden to also save Florodoro settings."""
+        self.save_settings()
+        super().closeEvent(event)
 
     def load_preset(self, study_value: int, break_value: int, cycles: int):
         """Load a pomodoro preset."""
