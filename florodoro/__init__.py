@@ -18,7 +18,7 @@ from PyQt5.QtGui import QPainter, QBrush, QPen, QColor, QIcon, QPainterPath, QKe
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
-    QMessageBox, QMenuBar, QStackedLayout, QSlider, QFileDialog, QGridLayout, QFrame
+    QMessageBox, QMenuBar, QStackedLayout, QSlider, QFileDialog, QGridLayout, QFrame, QWidgetAction
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 from plyer import notification
 
@@ -727,6 +727,21 @@ class History:
         """Return all of the studies."""
         return self.history["breaks"]
 
+class SpacedQWidget(QWidget):
+    """A dummy class for adding spacing to the left and right of a QWidget. Used in a QMenuBar's QWidgetAction, because
+    I haven't found a way to add spacing to the left/right of a QSlider."""
+
+    def __init__(self, widget: QWidget, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        layout = QHBoxLayout()
+        layout.addSpacing(5)
+        layout.addWidget(widget)
+        layout.addSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.setLayout(layout)
+
 
 class Florodoro(QWidget):
 
@@ -794,6 +809,7 @@ class Florodoro(QWidget):
         self.INITIAL_TEXT = "Start!"
 
         self.menuBar = QMenuBar(self)
+        self.menuBar.setCornerWidget(QLabel(text='ahoj'))
         self.presets_menu = self.menuBar.addMenu('&Presets')
 
         self.presets_menu.addAction(
@@ -805,8 +821,13 @@ class Florodoro(QWidget):
 
         self.notify_menu = self.options_menu.addMenu("&Notify")
 
-        self.sound_action = QAction("&Sound", self, checkable=True, checked=True)
+        self.sound_action = QAction("&Sound", self, checkable=True, checked=True, triggered=self.sound_action_toggle)
         self.notify_menu.addAction(self.sound_action)
+
+        self.volume_slider = QSlider(Qt.Horizontal, minimum=0, maximum=100)
+        slider_action = QWidgetAction(self)
+        slider_action.setDefaultWidget(SpacedQWidget(self.volume_slider))
+        self.notify_menu.addAction(slider_action)
 
         self.popup_action = QAction("&Pop-up", self, checkable=True, checked=True)
         self.notify_menu.addAction(self.popup_action)
@@ -947,6 +968,10 @@ class Florodoro(QWidget):
 
         self.show()
 
+    def sound_action_toggle(self):
+        """Called when the sound action is toggled. Enables/disables the volume slider."""
+        self.volume_slider.setDisabled(not self.sound_action.isChecked())
+
     def load_preset(self, study_value: int, break_value: int, cycles: int):
         """Load a pomodoro preset."""
         self.study_time_spinbox.setValue(study_value)
@@ -1077,6 +1102,7 @@ class Florodoro(QWidget):
                 url = QUrl.fromLocalFile(path)
                 content = QMediaContent(url)
                 self.player.setMedia(content)
+                self.player.setVolume(self.volume_slider.value())
                 self.player.play()
 
     def show_notification(self, message: str):
