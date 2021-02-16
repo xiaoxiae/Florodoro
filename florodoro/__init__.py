@@ -813,7 +813,6 @@ class Florodoro(QWidget):
         self.INITIAL_TEXT = "Start!"
 
         self.menuBar = QMenuBar(self)
-        self.menuBar.setCornerWidget(QLabel(text='ahoj'))
         self.presets_menu = self.menuBar.addMenu('&Presets')
 
         self.presets_menu.addAction(
