@@ -474,20 +474,22 @@ class Statistics(QWidget):
         self.plant: Optional[Plant] = None  # the plant being displayed
 
         self.plant_date_label = QLabel(self)
-        self.plant_date_label.setAlignment(Qt.AlignTop)
+        self.plant_date_label.setAlignment(Qt.AlignLeft)
 
         self.plant_duration_label = QLabel(self)
         self.plant_duration_label.setAlignment(Qt.AlignRight)
+
+        label_layout = QHBoxLayout()
+        label_layout.addWidget(self.plant_date_label)
+        label_layout.addWidget(self.plant_duration_label)
 
         self.canvas = Canvas(self)
         self.canvas.setMinimumWidth(200)
         self.canvas.setMinimumHeight(200)
 
-        stacked_layout = QStackedLayout()
+        stacked_layout = QVBoxLayout()
+        stacked_layout.addLayout(label_layout)
         stacked_layout.addWidget(self.canvas)
-        stacked_layout.addWidget(self.plant_date_label)
-        stacked_layout.addWidget(self.plant_duration_label)
-        stacked_layout.setStackingMode(QStackedLayout.StackAll)
 
         image_control = QHBoxLayout()
 
@@ -544,8 +546,6 @@ class Statistics(QWidget):
         days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         axis = QBarCategoryAxis()
         axis.append(days)
-        axis.setMinorGridLineVisible(False)
-        axis.setGridLineVisible(False)
 
         self.chart.createDefaultAxes()
         self.chart.setAxisX(axis, series)
@@ -555,10 +555,18 @@ class Statistics(QWidget):
         self.chart.setBackgroundVisible(False)
         self.chart.setBackgroundRoundness(0)
         self.chart.setMargins(QMargins(0, 0, 0, 0))
+        self.chart.setTitleBrush(QBrush(self.palette().text().color()))
 
         yAxis = self.chart.axes(Qt.Vertical)[0]
         yAxis.setGridLineVisible(False)
         yAxis.setLabelFormat("%d")
+        yAxis.setLinePenColor(self.palette().text().color())
+        yAxis.setLabelsColor(self.palette().text().color())
+
+        xAxis = self.chart.axes(Qt.Horizontal)[0]
+        xAxis.setGridLineVisible(False)
+        xAxis.setLinePenColor(self.palette().text().color())
+        xAxis.setLabelsColor(self.palette().text().color())
 
         chartView = QChartView(self.chart)
         chartView.setRenderHint(QPainter.Antialiasing)
