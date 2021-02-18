@@ -1005,6 +1005,9 @@ class Florodoro(QWidget):
 
     def save_settings(self):
         """Saves the settings file (if it exists)."""
+        if not os.path.exists(self.ROOT_FOLDER):
+            os.mkdir(self.ROOT_FOLDER)
+
         with open(self.CONFIGURATION_FILE_PATH, 'w') as file:
             configuration = {}
 
