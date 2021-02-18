@@ -765,6 +765,8 @@ class Florodoro(QWidget):
 
         arguments = self.parseArguments()
 
+        self.DEBUG = arguments.debug
+
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
         self.MIN_WIDTH = 600
@@ -773,10 +775,10 @@ class Florodoro(QWidget):
         self.setMinimumWidth(self.MIN_WIDTH)
         self.setMinimumHeight(self.MIN_HEIGHT)
 
-        self.ROOT_FOLDER = "~/.florodoro/"
+        self.ROOT_FOLDER = os.path.expanduser("~/.florodoro/")
 
-        self.HISTORY_FILE_PATH = os.path.expanduser(self.ROOT_FOLDER) + "history.yaml"
-        self.CONFIGURATION_FILE_PATH = os.path.expanduser(self.ROOT_FOLDER) + "configuration.yaml"
+        self.HISTORY_FILE_PATH = self.ROOT_FOLDER + "history" + ("" if not self.DEBUG else "-debug") + ".yaml"
+        self.CONFIGURATION_FILE_PATH = self.ROOT_FOLDER + "config" + ("" if not self.DEBUG else "-debug") + ".yaml"
 
         self.history = History(self.HISTORY_FILE_PATH)
 
@@ -797,8 +799,6 @@ class Florodoro(QWidget):
 
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
         self.PLANT_NAMES = ["Spruce", "Double spruce", "Maple", "Flower"]
-
-        self.DEBUG = arguments.debug
 
         self.DEFAULT_STUDY_TIME = 45
         self.DEFAULT_BREAK_TIME = 15
