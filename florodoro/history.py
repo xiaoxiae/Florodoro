@@ -52,13 +52,13 @@ class History:
 
     def total_studied_time(self) -> float:
         """Return the total minutes of studied time."""
-        return self._total_time("studies")
+        return self._total_activity_time("studies")
 
     def total_break_time(self) -> float:
         """Return the total minutes of studied time."""
-        return self._total_time("breaks")
+        return self._total_activity_time("breaks")
 
-    def _total_time(self, activity_type: str):
+    def _total_activity_time(self, activity_type: str):
         """Calculate the total time of something."""
         # TODO: check for correct formatting, don't just crash if it's wrong
         total = 0
@@ -69,9 +69,10 @@ class History:
 
     def total_plants_grown(self) -> int:
         """Return the total number of plants grown."""
-        # TODO: check for correct formatting, don't just crash if it's wrong
         count = 0
         for study in self.get_studies():
+            # TODO: check for correct formatting, don't just crash if it's wrong
+
             if study["plant"] is not None:
                 count += 1
 
@@ -86,7 +87,3 @@ class History:
             studies = sorted(studies, key=lambda x: x["date"])
 
         return studies
-
-    def get_breaks(self) -> List:
-        """Return all of the studies."""
-        return self.history["breaks"]

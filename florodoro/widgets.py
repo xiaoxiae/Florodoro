@@ -82,13 +82,16 @@ class Statistics(QWidget):
         image_control = QHBoxLayout()
 
         text_color = self.palette().text().color()
-        self.left_button = QPushButton(self, clicked=self.left,
-                                       icon=qtawesome.icon('fa5s.angle-left', color=text_color))
+
         self.age_slider = QSlider(Qt.Horizontal, minimum=0, maximum=1000, value=1000,
                                   valueChanged=self.slider_value_changed)
+
+        self.left_button = QPushButton(self, clicked=self.left,
+                                       icon=qtawesome.icon('fa5s.angle-left', color=text_color))
         self.right_button = QPushButton(self, clicked=self.right,
                                         icon=qtawesome.icon('fa5s.angle-right', color=text_color))
-        self.save_button = QPushButton(self, clicked=self.save, icon=qtawesome.icon('fa5s.download', color=text_color))
+        self.save_button = QPushButton(self, clicked=self.save,
+                                       icon=qtawesome.icon('fa5s.download', color=text_color))
 
         image_control.addWidget(self.left_button)
         image_control.addWidget(self.right_button)
