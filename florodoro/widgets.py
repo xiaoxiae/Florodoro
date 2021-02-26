@@ -232,6 +232,9 @@ class Statistics(QWidget):
         if self.plant is not None:
             name, _ = QFileDialog.getSaveFileName(self, 'Save File', "", "SVG files (*.svg)")
 
+            if name == "":
+                return
+
             if not name.endswith(".svg"):
                 name += ".svg"
 
