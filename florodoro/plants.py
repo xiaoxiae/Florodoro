@@ -1,8 +1,7 @@
 from abc import abstractmethod, ABC
-from dataclasses import dataclass
-from math import degrees, sin, acos
+from math import degrees, sin, acos, sqrt
 from random import uniform, random, randint, choice
-from typing import Annotated, NewType, Callable
+from typing import Callable
 
 from PyQt5.QtCore import QSize, QRect, QPointF, QRectF, Qt
 from PyQt5.QtGui import QPainter, QColor, QPainterPath, QPen, QBrush
@@ -47,31 +46,37 @@ class Color:
     ]
 
 
-@dataclass
-class Range:
-    minimum: int
-    maximum: int
-
-
-Age = NewType('Age', Annotated[float, Range(0, 1)])
-
-
 class Plant(Drawable):
-    age: Age = 0
-    max_age: Age = 1
+    age: float = 0
 
-    def set_age(self, age: Age):
-        """Set the current age of the plant."""
+    # coefficient that change how quickly the plant grows
+    age_coefficient = 15
+    age_exponent = 2
+
+    def __init__(self):
+        # make the sizes somewhat random
+        self.deficit_coefficient = uniform(0.9, 1)
+
+    def set_age(self, age: float):
+        """Set the current age of the plant (in minutes)."""
         self.age = age
 
-    def set_max_age(self, max_age: Age):
-        """Change the plant's max age, re-generating it in the process."""
-        self.max_age = max_age
-        self.generate()
+    def age_coefficient_function(self, x) -> float:
+        """The function that calculates the normalized age [0, 1] from actual age (in minutes)."""
+        return - 1 / ((x / self.age_coefficient) ** self.age_exponent + 1) + 1
 
-    def get_adjusted_age(self) -> Age:
-        """Return the age, adjusted to increase to 1 slower (some parts of the plant grow slower than others)."""
-        return self.age ** 2
+    def inverse_age_coefficient_function(self, x) -> float:
+        """The inverse to the age function."""
+        return float('inf') if x == 1 else (self.age_coefficient * x ** (1 / self.age_exponent)) / (1 - x) ** (
+                1 / self.age_exponent)
+
+    def get_age_coefficient(self) -> float:
+        """Return the age, adjusted from 0 to 1."""
+        return self.age_coefficient_function(self.age)
+
+    def get_slower_age_coefficient(self) -> float:
+        """Return the age, adjusted from 0 to 1, but increasing slower."""
+        return self.get_age_coefficient() ** 3
 
     @abstractmethod
     def _draw(self, painter: QPainter, width: int, height: int):
@@ -79,10 +84,7 @@ class Plant(Drawable):
         pass
 
     def draw(self, painter: QPainter, width: int, height: int):
-        """Draw the plant on the painter, given """
-        if self.max_age is None:
-            return
-
+        """Draw the plant on the painter, given the width and height."""
         w = min(width, height)
         h = min(width, height)
 
@@ -92,17 +94,18 @@ class Plant(Drawable):
 
         self._draw(painter, w, h)
 
-    def generate(self):
-        """A method that generates all variables used in drawing the plant."""
-        # so we don't go from 0 to 1, but from 0.5 to 1
-        # a coefficient to multiply all parts of the given plant by that depend on its maximum age
-        self.age_coefficient = (self.max_age + 1) / 2
-
-        # make the sizes somewhat random
-        self.deficit_coefficient = uniform(0.9, 1)
-
 
 class Flower(Plant):
+
+    def __init__(self):
+        super().__init__()
+
+        # the ending x position of the flower -- so it tilts one way or another
+        self.x_coefficient = uniform(0.4, 1) * (-1 if random() < 0.5 else 1)
+
+        self.generate_leafs(2)
+
+        self.stem_width = uniform(3.5, 4)
 
     def generate_leafs(self, count):
         """Generate the leafs of the flower."""
@@ -117,27 +120,17 @@ class Flower(Plant):
 
     def flower_center_y(self, height):
         """The y coordinate of the center of the flower."""
-        return height / 2.5 * self.deficit_coefficient * self.age_coefficient
+        return height / 2.5 * self.deficit_coefficient
 
     def leaf_size(self, width):
         """The size of the leaf."""
-        return width / 7 * self.deficit_coefficient * self.age_coefficient
-
-    def generate(self):
-        super().generate()
-
-        # the ending x position of the flower -- so it tilts one way or another
-        self.x_coefficient = uniform(0.4, 1) * (-1 if random() < 0.5 else 1)
-
-        self.generate_leafs(2)
-
-        self.stem_width = uniform(3.5, 4) * self.age_coefficient
+        return width / 7 * self.deficit_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
-        self.x = self.flower_center_x(width) * smoothen_curve(self.age)
-        self.y = self.flower_center_y(height) * smoothen_curve(self.age)
+        self.x = self.flower_center_x(width) * smoothen_curve(self.get_age_coefficient())
+        self.y = self.flower_center_y(height) * smoothen_curve(self.get_age_coefficient())
 
-        painter.setPen(QPen(Color.green, self.stem_width * smoothen_curve(self.age)))
+        painter.setPen(QPen(Color.green, self.stem_width * smoothen_curve(self.get_age_coefficient())))
 
         # draw the stem
         path = QPainterPath()
@@ -166,7 +159,7 @@ class Flower(Plant):
             # draw the leaf
             leaf = QPainterPath()
             leaf.setFillRule(Qt.WindingFill)
-            ls = self.leaf_size(width) * smoothen_curve(self.age) ** 2 * coefficient
+            ls = self.leaf_size(width) * smoothen_curve(self.get_age_coefficient()) ** 2 * coefficient
             leaf.quadTo(0.4 * ls, 0.5 * ls, 0, ls)
             leaf.cubicTo(0, 0.5 * ls, -0.4 * ls, 0.4 * ls, 0, 0)
             painter.drawPath(leaf)
@@ -176,6 +169,24 @@ class Flower(Plant):
 
 class CircularFlower(Flower):
     """A class for creating a flower."""
+
+    def __init__(self):
+        super().__init__()
+
+        # color of the flower
+        self.color = choice(Color.logo_colors)
+
+        self.number_of_pellets = randint(5, 7)
+
+        # the center of the plant is smaller, compared to other pellet sizes
+        self.center_pellet_smaller_coefficient = uniform(0.75, 0.85)
+
+        self.pellet_drawing_function: Callable[[QPainter, float], None] = choice(
+            [self.circular_pellet, self.triangle_pellet, self.dip_pellet, self.round_pellet])
+
+        # the m and n pellets don't look good with any other number of leafs (other than 5)
+        if self.pellet_drawing_function in [self.dip_pellet, self.round_pellet]:
+            self.number_of_pellets = 5
 
     def triangle_pellet(self, painter: QPainter, pellet_size: float):
         """A pellet that is pointy and triangular (1st in logo)"""
@@ -217,25 +228,7 @@ class CircularFlower(Flower):
 
     def pellet_size(self, width):
         """Return the size of the pellet."""
-        return width / 9 * self.deficit_coefficient * self.age_coefficient
-
-    def generate(self):
-        super().generate()
-
-        # color of the flower
-        self.color = choice(Color.logo_colors)
-
-        self.number_of_pellets = randint(5, 7)
-
-        # the center of the plant is smaller, compared to other pellet sizes
-        self.center_pellet_smaller_coefficient = uniform(0.75, 0.85)
-
-        self.pellet_drawing_function: Callable[[QPainter, float], None] = choice(
-            [self.circular_pellet, self.triangle_pellet, self.dip_pellet, self.round_pellet])
-
-        # the m and n pellets don't look good with any other number of leafs (other than 5)
-        if self.pellet_drawing_function in [self.dip_pellet, self.round_pellet]:
-            self.number_of_pellets = 5
+        return width / 9 * self.deficit_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
         super()._draw(painter, width, height)
@@ -248,7 +241,7 @@ class CircularFlower(Flower):
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(self.color))
 
-        pellet_size = self.pellet_size(width) * smoothen_curve(self.age)
+        pellet_size = self.pellet_size(width) * smoothen_curve(self.get_age_coefficient())
 
         # draw each of the pellets
         for i in range(self.number_of_pellets):
@@ -266,6 +259,12 @@ class CircularFlower(Flower):
 class Tree(Plant):
     """A simple tree class that all trees originate from."""
 
+    def __init__(self):
+        super().__init__()
+
+        # generate somewhere between 1 and 2 branches
+        self.generateBranches(round(uniform(1, 2)))
+
     def generateBranches(self, count):
         # positions of branches up the tree, + their orientations (where they're turned towards)
         self.branches = [(uniform(self.deficit_coefficient * 0.45, self.deficit_coefficient * 0.55),
@@ -275,46 +274,40 @@ class Tree(Plant):
 
     def base_width(self, width):
         """The width of the base of the tree."""
-        return width / 15 * self.deficit_coefficient * self.age_coefficient
+        return width / 15 * self.deficit_coefficient
 
     def base_height(self, height):
         """The height of the base of the tree."""
-        return height / 1.7 * self.deficit_coefficient * self.age_coefficient
+        return height / 1.7 * self.deficit_coefficient
 
     def branch_width(self, width):
         """The width of a branch of the tree."""
-        return width / 18 * self.deficit_coefficient * self.age_coefficient
+        return width / 18 * self.deficit_coefficient
 
     def branch_height(self, height):
         """The height of a branch of the tree."""
-        return height / 2.7 * self.deficit_coefficient * self.age_coefficient
-
-    def generate(self):
-        super().generate()
-
-        # generate somewhere between 1 and 2 branches
-        self.generateBranches(round(uniform(1, 2 * self.age_coefficient)))
+        return height / 2.7 * self.deficit_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setBrush(QBrush(Color.brown))
 
         # main branch
-        painter.drawPolygon(QPointF(-self.base_width(width) * smoothen_curve(self.age), 0),
-                            QPointF(self.base_width(width) * smoothen_curve(self.age), 0),
-                            QPointF(0, self.base_height(height) * smoothen_curve(self.age)))
+        painter.drawPolygon(QPointF(-self.base_width(width) * smoothen_curve(self.get_age_coefficient()), 0),
+                            QPointF(self.base_width(width) * smoothen_curve(self.get_age_coefficient()), 0),
+                            QPointF(0, self.base_height(height) * smoothen_curve(self.get_age_coefficient())))
 
         # other branches
         for h, rotation in self.branches:
             painter.save()
 
             # translate/rotate to the position from which the branches grow
-            painter.translate(0, self.base_height(height * h * smoothen_curve(self.age)))
+            painter.translate(0, self.base_height(height * h * smoothen_curve(self.get_age_coefficient())))
             painter.rotate(degrees(rotation))
 
             painter.drawPolygon(
-                QPointF(-self.branch_width(width) * smoothen_curve(self.get_adjusted_age()) * (1 - h), 0),
-                QPointF(self.branch_width(width) * smoothen_curve(self.get_adjusted_age()) * (1 - h), 0),
-                QPointF(0, self.branch_height(height) * smoothen_curve(self.get_adjusted_age()) * (1 - h)))
+                QPointF(-self.branch_width(width) * smoothen_curve(self.get_slower_age_coefficient()) * (1 - h), 0),
+                QPointF(self.branch_width(width) * smoothen_curve(self.get_slower_age_coefficient()) * (1 - h), 0),
+                QPointF(0, self.branch_height(height) * smoothen_curve(self.get_slower_age_coefficient()) * (1 - h)))
 
             painter.restore()
 
@@ -322,8 +315,8 @@ class Tree(Plant):
 class OrangeTree(Tree):
     """A tree with orange ellipses as leafs."""
 
-    def generate(self):
-        super().generate()
+    def __init__(self):
+        super().__init__()
 
         # orange trees will always have 2 branches
         # it just looks better
@@ -345,27 +338,27 @@ class OrangeTree(Tree):
             painter.save()
 
             # translate/rotate to the position from which the branches grow
-            painter.translate(0, self.base_height(height * h * smoothen_curve(self.age)))
+            painter.translate(0, self.base_height(height * h * smoothen_curve(self.get_age_coefficient())))
             painter.rotate(degrees(rotation))
 
-            top_of_branch = self.branch_height(height) * smoothen_curve(self.get_adjusted_age()) * (1 - h)
+            top_of_branch = self.branch_height(height) * smoothen_curve(self.get_slower_age_coefficient()) * (1 - h)
             circle_on_branch_position = top_of_branch * self.branch_circles[i][1]
 
-            r = ((width + height) / 2) * self.branch_circles[i][0] * smoothen_curve(self.get_adjusted_age()) * (
-                    1 - h) * self.age_coefficient
+            r = ((width + height) / 2) * self.branch_circles[i][0] * self.get_slower_age_coefficient() * (
+                    1 - h) * self.get_age_coefficient()
 
             painter.setBrush(QBrush(Color.orange))
             painter.drawEllipse(QPointF(0, circle_on_branch_position), r, r)
 
             painter.restore()
 
-        top_of_branch = self.base_height(height) * smoothen_curve(self.age)
+        top_of_branch = self.base_height(height) * smoothen_curve(self.get_age_coefficient())
         circle_on_branch_position = top_of_branch * self.branch_circles[-1][1]
 
         # make the main ellipse slightly larger
         increase_size = 1.3
-        r = ((width + height) / 2) * self.branch_circles[-1][0] * smoothen_curve(self.get_adjusted_age()) * (
-                1 - self.branches[-1][0]) * self.age_coefficient * increase_size
+        r = ((width + height) / 2) * self.branch_circles[-1][0] * self.get_age_coefficient() * (
+                1 - self.branches[-1][0]) * increase_size
 
         painter.drawEllipse(QPointF(0, circle_on_branch_position), r, r)
 
@@ -375,27 +368,28 @@ class OrangeTree(Tree):
 class GreenTree(Tree):
     """A tree with a green triangle as leafs."""
 
+    def __init__(self):
+        super().__init__()
+
     def green_width(self, width):
         """The width of the top part of the leafs."""
-        return width / 3.2 * self.deficit_coefficient * self.age_coefficient
+        return width / 3.2 * self.deficit_coefficient
 
     def green_height(self, height):
         """The height of the top part of the leafs."""
-        return height / 1.5 * self.deficit_coefficient * self.age_coefficient
+        return height / 1.5 * self.deficit_coefficient
 
     def offset(self, height):
-        return min(height * 0.95, self.base_height(height * 0.3 * smoothen_curve(self.age)))
-
-    def generate(self):
-        super().generate()
+        return min(height * 0.95, self.base_height(height * 0.3 * smoothen_curve(self.get_age_coefficient())))
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(Color.green))
 
-        painter.drawPolygon(QPointF(-self.green_width(width) * smoothen_curve(self.age), self.offset(height)),
-                            QPointF(self.green_width(width) * smoothen_curve(self.age), self.offset(height)),
-                            QPointF(0, self.green_height(height) * smoothen_curve(self.age) + self.offset(height)))
+        painter.drawPolygon(
+            QPointF(-self.green_width(width) * smoothen_curve(self.get_age_coefficient()), self.offset(height)),
+            QPointF(self.green_width(width) * smoothen_curve(self.get_age_coefficient()), self.offset(height)),
+            QPointF(0, self.green_height(height) * smoothen_curve(self.get_age_coefficient()) + self.offset(height)))
 
         super()._draw(painter, width, height)
 
@@ -403,27 +397,30 @@ class GreenTree(Tree):
 class DoubleGreenTree(GreenTree):
     """A tree with a double green triangle as leafs."""
 
+    def __init__(self):
+        super().__init__()
+
     def second_green_width(self, width):
-        return width / 3.5 * self.deficit_coefficient * self.age_coefficient
+        return width / 3.5 * self.deficit_coefficient
 
     def second_green_height(self, height):
-        return height / 2.4 * self.deficit_coefficient * self.age_coefficient
-
-    def generate(self):
-        super().generate()
+        return height / 2.4 * self.deficit_coefficient
 
     def _draw(self, painter: QPainter, width: int, height: int):
         painter.setPen(QPen(Qt.NoPen))
         painter.setBrush(QBrush(Color.green))
 
-        offset = self.base_height(height * 0.3 * smoothen_curve(self.age))
-        second_offset = (self.green_height(height) - self.second_green_height(height)) * smoothen_curve(self.age)
+        offset = self.base_height(height * 0.3 * smoothen_curve(self.get_age_coefficient()))
+        second_offset = (self.green_height(height) - self.second_green_height(height)) * smoothen_curve(
+            self.get_age_coefficient())
 
         painter.drawPolygon(
-            QPointF(-self.second_green_width(width) * smoothen_curve(self.age) ** 2, offset + second_offset),
-            QPointF(self.second_green_width(width) * smoothen_curve(self.age) ** 2, offset + second_offset),
+            QPointF(-self.second_green_width(width) * smoothen_curve(self.get_age_coefficient()) ** 2,
+                    offset + second_offset),
+            QPointF(self.second_green_width(width) * smoothen_curve(self.get_age_coefficient()) ** 2,
+                    offset + second_offset),
             QPointF(0, min(
-                self.second_green_height(height) * smoothen_curve(self.age) + offset + second_offset,
+                self.second_green_height(height) * smoothen_curve(self.get_age_coefficient()) + offset + second_offset,
                 height * 0.95)))
 
         super()._draw(painter, width, height)

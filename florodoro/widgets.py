@@ -168,7 +168,11 @@ class Statistics(QWidget):
     def slider_value_changed(self):
         """Called when the slider value has changed. Sets the age of the plant and updates it."""
         if self.plant is not None:
-            self.plant.set_age(self.age_slider.value() / self.age_slider.maximum())
+            # makes it a linear function from 0 to whatever the duration was, so the plant appears to grow normally
+            self.plant.set_age(
+                self.plant.inverse_age_coefficient_function(self.age_slider.value() / self.age_slider.maximum() *
+                                                            self.plant.age_coefficient_function(
+                                                                self.plant_study["duration"])))
             self.canvas.update()
 
     def refresh(self):

@@ -77,8 +77,6 @@ class Florodoro(QWidget):
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
         self.PLANT_NAMES = ["Spruce", "Double spruce", "Maple", "Flower"]
 
-        self.MAX_PLANT_AGE = 90  # maximum number of minutes to make the plant optimal in size
-
         self.WIDGET_SPACING = 10
 
         self.MAX_TIME = 180
@@ -156,8 +154,7 @@ class Florodoro(QWidget):
         for plant, name in zip(self.PLANTS, self.PLANT_NAMES):
             self.plant_images.append(tempfile.NamedTemporaryFile(suffix=".svg"))
             tmp = plant()
-            tmp.set_max_age(1)
-            tmp.set_age(1)
+            tmp.set_age(float('inf'))
             tmp.save(self.plant_images[-1].name, 200, 200)
 
             setattr(self.__class__, name,
@@ -314,19 +311,6 @@ class Florodoro(QWidget):
         self.break_time_spinbox.setValue(break_value)
         self.cycles_spinbox.setValue(cycles)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Debug-related keyboard controls."""
-        if self.DEBUG:
-            if event.key() == Qt.Key_Escape:
-                possible_plants = [plant for i, plant in enumerate(self.PLANTS) if self.plant_checkboxes[i].isChecked()]
-
-                if len(possible_plants) != 0:
-                    self.plant = choice(possible_plants)()
-                    self.canvas.set_drawable(self.plant)
-                    self.plant.set_max_age(1)
-                    self.plant.set_age(1)
-                    self.canvas.update()
-
     def start_break(self):
         """Starts the break, instead of the study."""
         # if we're overstudying, this can be pressed when studying, so save that we did so
@@ -381,7 +365,6 @@ class Florodoro(QWidget):
             if len(possible_plants) != 0:
                 self.plant = choice(possible_plants)()
                 self.canvas.set_drawable(self.plant)
-                self.plant.set_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
                 self.plant.set_age(0)
             else:
                 self.plant = None
@@ -509,25 +492,28 @@ class Florodoro(QWidget):
                     self.start()
                     self.update_cycles_label()
 
-        else:
-            # if there is leftover time and we haven't finished studying, grow the plant
-            if self.is_study_ongoing:
-                if self.plant is not None:
-                    self.plant.set_age(1 - (self.get_leftover_time() / self.total_time))
+        # if we haven't finished studying, grow the plant
+        if self.is_study_ongoing:
+            if self.plant is not None:
+                self.plant.set_age(self.duration())
 
-                self.canvas.update()
+            self.canvas.update()
+
+    def duration(self):
+        """Get the current duration of whatever is currently going on."""
+        return (self.total_time - self.get_leftover_time()) / 60
 
     def save_study(self, ignore_remainder=True):
         """Save the record of the current study to the history file. By default, ignore the leftover time, since it
         will be a tiny number."""
         date = datetime.now()
 
-        duration = (self.total_time - self.get_leftover_time()) / 60
+        d = self.duration()
 
         if ignore_remainder:
-            duration = float(int(duration))
+            d = float(int(d))
 
-        self.history.add_study(date, duration, self.plant)
+        self.history.add_study(date, d, self.plant)
 
         self.statistics.move()  # move to the last plant
         self.statistics.refresh()
