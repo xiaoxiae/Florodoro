@@ -5,13 +5,13 @@ import tempfile
 from datetime import datetime, timedelta
 from functools import partial
 from random import choice
-import functools
-
+import tkinter as tk
+from tkinter import messagebox
 import qtawesome
 import yaml
 from PyQt5.QtCore import QTimer, QTime, Qt, QDir, QUrl
 from PyQt5.QtGui import QIcon, QKeyEvent
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QAudioDeviceInfo, QAudio
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
     QMessageBox, QMenuBar, QStackedLayout, QSlider, QWidgetAction
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
@@ -78,6 +78,8 @@ class Florodoro(QWidget):
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
         self.PLANT_NAMES = ["Spruce", "Double spruce", "Maple", "Flower"]
 
+        self.MAX_PLANT_AGE = 90  # maximum number of minutes to make the plant optimal in size
+
         self.WIDGET_SPACING = 10
 
         self.MAX_TIME = 180
@@ -112,21 +114,6 @@ class Florodoro(QWidget):
                                         not self.sound_action.isChecked()))
 
         self.notify_menu.addAction(self.sound_action)
-
-        # Default audio device
-        self.audio_device = QAudioDeviceInfo.defaultInputDevice()
-
-        # Create device menu
-        self.audio_device_menu = self.notify_menu.addMenu("&Audio Devices")
-
-        # For all sound devices, add a device check box to the device menu
-        audio_devices = QAudioDeviceInfo.availableDevices(QAudio.AudioOutput)
-
-        for device in audio_devices:
-            device_name = device.deviceName()
-            self.device_action = QAction(f"&{device_name}", self, checkable=True, checked=not self.DEBUG, triggered=functools.partial(self.setAudioDevice, device))
-            # Create callback of some sort for clicking on the device in the menu
-            self.audio_device_menu.addAction(self.device_action)
 
         self.volume_slider = QSlider(Qt.Horizontal, minimum=0, maximum=100, value=85)
         slider_action = QWidgetAction(self)
@@ -260,9 +247,7 @@ class Florodoro(QWidget):
         self.study_timer_frequency = 1 / 60 * 1000
         self.study_timer = QTimer(self, interval=int(self.study_timer_frequency), timeout=self.decrease_remaining_time)
 
-        # NOTE: Perhaps a different way to set the audio device?
         self.player = QMediaPlayer(self)
-#        print(self.player.isAudioAvailable())
 
         self.setWindowIcon(QIcon(self.IMAGE_FOLDER + "icon.svg"))
         self.setWindowTitle(self.APP_NAME)
@@ -380,12 +365,47 @@ class Florodoro(QWidget):
         self.already_notified_during_overstudy = False
 
         self.main_label.setStyleSheet('' if not do_break else f'color:{self.BREAK_COLOR};')
-
+        
+        f = open("timeplace.txt", "r")
+        line = f.readline()
+        f.close()
+        
         # the total time to study for (spinboxes are minutes)
         # since it's rounded down and it looks better to start at the exact time, 0.99 is added
-        self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
-        self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
-
+        if line == '0' or line == '':
+            self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
+            self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)        
+                        
+        else:
+            root = tk.Tk()
+            
+            def time_left():
+                MsgBox = tk.messagebox.askquestion("Unfinished Study Session", f"{'You still have '}{line}{' left in your study session do you want to continue where you left off?'}")
+                if MsgBox == 'yes':
+                    time = line.split(':')
+                    if len(time) == 3:                   
+                        total2 = int(time[0]) * 3600
+                        total2 += int(time[1]) * 60
+                        total2 += int(time[2]) 
+            
+                    elif len(time) == 2:
+                        total2 = int(time[0]) * 60
+                        total2 += int(time[1])
+            
+                    elif len(time) == 1:
+                        total2 = int(time[0])
+                       
+                    self.total_time = total2
+                    
+                    self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)  
+                    
+                else:
+                    self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
+                    self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)        
+                                       
+                root.destroy()
+            
+            time_left()
         # so it's displayed immediately
         self.update_time_label(self.total_time)
         self.update_cycles_label()
@@ -397,7 +417,7 @@ class Florodoro(QWidget):
             if len(possible_plants) != 0:
                 self.plant = choice(possible_plants)()
                 self.canvas.set_drawable(self.plant)
-                self.plant.set_max_age(1)
+                self.plant.set_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
                 self.plant.set_age(0)
             else:
                 self.plant = None
@@ -442,9 +462,10 @@ class Florodoro(QWidget):
     def update_time_label(self, time):
         """Update the text of the time label, given some time in seconds."""
         sign = -1 if time < 0 else 1
-
+        
+        f = open("timeplace.txt", "w") 
         time = abs(time)
-
+        
         hours = int(time // 3600)
         minutes = int((time // 60) % 60)
         seconds = int(time % 60)
@@ -459,6 +480,14 @@ class Florodoro(QWidget):
         else:
             result += str(hours) + QTime(0, minutes, seconds).toString(":mm:ss")
 
+        if time < 0:
+            f.write('0')
+  
+        else:
+            f.write(result)
+        
+        f.close()
+        
         self.main_label.setText(result)
 
     def play_sound(self, name: str):
@@ -529,7 +558,7 @@ class Florodoro(QWidget):
             # if there is leftover time and we haven't finished studying, grow the plant
             if self.is_study_ongoing:
                 if self.plant is not None:
-                    self.plant.set_age(1 - (self.get_leftover_time() / self.total_time)**2)
+                    self.plant.set_age(1 - (self.get_leftover_time() / self.total_time))
 
                 self.canvas.update()
 
@@ -548,8 +577,6 @@ class Florodoro(QWidget):
         self.statistics.move()  # move to the last plant
         self.statistics.refresh()
 
-    def setAudioDevice(self, device):
-        self.audio_device = device
 
 def run():
     app = QApplication(sys.argv)
