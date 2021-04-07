@@ -5,8 +5,6 @@ import tempfile
 from datetime import datetime, timedelta
 from functools import partial
 from random import choice
-import tkinter as tk
-from tkinter import messagebox
 import qtawesome
 import yaml
 from PyQt5.QtCore import QTimer, QTime, Qt, QDir, QUrl
@@ -365,46 +363,44 @@ class Florodoro(QWidget):
         self.already_notified_during_overstudy = False
 
         self.main_label.setStyleSheet('' if not do_break else f'color:{self.BREAK_COLOR};')
-        
+
         f = open("timeplace.txt", "r")
         line = f.readline()
         f.close()
-        
+
         # the total time to study for (spinboxes are minutes)
         # since it's rounded down and it looks better to start at the exact time, 0.99 is added
         if line == '0' or line == '':
             self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
-            self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)        
-                        
+            self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
+
         else:
-            root = tk.Tk()
-            
+
             def time_left():
-                MsgBox = tk.messagebox.askquestion("Unfinished Study Session", f"{'You still have '}{line}{' left in your study session do you want to continue where you left off?'}")
-                if MsgBox == 'yes':
+                MsgBox = QMessageBox.question(self,"Unfinished Study Session", f"{'You still have '}{line}{' left in your study session do you want to continue where you left off?'}", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+                if MsgBox == QMessageBox.Yes:
                     time = line.split(':')
-                    if len(time) == 3:                   
+                    if len(time) == 3:
                         total2 = int(time[0]) * 3600
                         total2 += int(time[1]) * 60
-                        total2 += int(time[2]) 
-            
+                        total2 += int(time[2])
+
                     elif len(time) == 2:
                         total2 = int(time[0]) * 60
                         total2 += int(time[1])
-            
+
                     elif len(time) == 1:
                         total2 = int(time[0])
-                       
+
                     self.total_time = total2
-                    
-                    self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)  
-                    
+
+                    self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
+
                 else:
                     self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
-                    self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)        
-                                       
-                root.destroy()
-            
+                    self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
+
             time_left()
         # so it's displayed immediately
         self.update_time_label(self.total_time)
@@ -462,10 +458,10 @@ class Florodoro(QWidget):
     def update_time_label(self, time):
         """Update the text of the time label, given some time in seconds."""
         sign = -1 if time < 0 else 1
-        
-        f = open("timeplace.txt", "w") 
+
+        f = open("timeplace.txt", "w")
         time = abs(time)
-        
+
         hours = int(time // 3600)
         minutes = int((time // 60) % 60)
         seconds = int(time % 60)
@@ -482,12 +478,12 @@ class Florodoro(QWidget):
 
         if time < 0:
             f.write('0')
-  
+
         else:
             f.write(result)
-        
+
         f.close()
-        
+
         self.main_label.setText(result)
 
     def play_sound(self, name: str):
