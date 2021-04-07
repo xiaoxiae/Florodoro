@@ -78,8 +78,6 @@ class Florodoro(QWidget):
         self.PLANTS = [GreenTree, DoubleGreenTree, OrangeTree, CircularFlower]
         self.PLANT_NAMES = ["Spruce", "Double spruce", "Maple", "Flower"]
 
-        self.MAX_PLANT_AGE = 90  # maximum number of minutes to make the plant optimal in size
-
         self.WIDGET_SPACING = 10
 
         self.MAX_TIME = 180
@@ -399,7 +397,7 @@ class Florodoro(QWidget):
             if len(possible_plants) != 0:
                 self.plant = choice(possible_plants)()
                 self.canvas.set_drawable(self.plant)
-                self.plant.set_max_age(min(1, (self.total_time / 60) / self.MAX_PLANT_AGE))
+                self.plant.set_max_age(1)
                 self.plant.set_age(0)
             else:
                 self.plant = None
@@ -531,7 +529,7 @@ class Florodoro(QWidget):
             # if there is leftover time and we haven't finished studying, grow the plant
             if self.is_study_ongoing:
                 if self.plant is not None:
-                    self.plant.set_age(1 - (self.get_leftover_time() / self.total_time))
+                    self.plant.set_age(1 - (self.get_leftover_time() / self.total_time)**2)
 
                 self.canvas.update()
 
