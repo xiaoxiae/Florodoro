@@ -367,7 +367,7 @@ class Florodoro(QWidget):
         f = open("timeplace.txt", "r")
         line = f.readline()
         f.close()
-        
+
         # the total time to study for (spinboxes are minutes)
         # since it's rounded down and it looks better to start at the exact time, 0.99 is added
         if line == '0' or line == '':
@@ -377,17 +377,17 @@ class Florodoro(QWidget):
         else:
 
             def time_left():
-                f2 = open("cycleleft", "r")
-                remaining_c = int(f2.readline())
-                total_c = int(f2.readline())
-                f2.close()
-                
-                MsgBox = QMessageBox.question(self,"Unfinished Study Session", f"{'You still have '}{line}{' and'}{remaining_c}{' left in your study session do you want to continue where you left off?'}", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                #f2 = open("cycleleft", "r")
+                #remaining_c = int(f2.readline())
+                #total_c = int(f2.readline())
+                #f2.close()
+
+                MsgBox = QMessageBox.question(self,"Unfinished Study Session", f"{'You still have '}{line}{' left in your study session do you want to continue where you left off?'}", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
                 if MsgBox == QMessageBox.Yes:
-                    self.total_cycles = total_c
-                    self.remaining_cycles = remaining_c
-                    
+                    #self.total_cycles = total_c
+                    #self.remaining_cycles = remaining_c
+
                     time = line.split(':')
                     if len(time) == 3:
                         total2 = int(time[0]) * 3600
@@ -512,11 +512,11 @@ class Florodoro(QWidget):
 
     def update_cycles_label(self):
         """Update the cycles label, if we're currently studying and it wouldn't be 1/1."""
-        f = open("cycleleft", "w")
-        f.write(str(self.remaining_cycles + 1) + "\n")
-        f.write(str(self.total_cycles))
-        f.close()
-        
+        #f = open("cycleleft", "w")
+        #f.write(str(self.remaining_cycles + 1) + "\n")
+        #f.write(str(self.total_cycles))
+        #f.close()
+
         if self.total_cycles != 1 and self.is_study_ongoing:
             self.cycle_label.setText(f"{self.total_cycles - self.remaining_cycles + 1}/{self.total_cycles}")
 
