@@ -368,11 +368,6 @@ class Florodoro(QWidget):
         line = f.readline()
         f.close()
         
-        f2 = open("cycleleft", "r")
-        remaining_c = int(f2.readline())
-        total_c = int(f2.readline())
-        f2.close()
-        
         # the total time to study for (spinboxes are minutes)
         # since it's rounded down and it looks better to start at the exact time, 0.99 is added
         if line == '0' or line == '':
@@ -382,6 +377,11 @@ class Florodoro(QWidget):
         else:
 
             def time_left():
+                f2 = open("cycleleft", "r")
+                remaining_c = int(f2.readline())
+                total_c = int(f2.readline())
+                f2.close()
+                
                 MsgBox = QMessageBox.question(self,"Unfinished Study Session", f"{'You still have '}{line}{' and'}{remaining_c}{' left in your study session do you want to continue where you left off?'}", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
                 if MsgBox == QMessageBox.Yes:
