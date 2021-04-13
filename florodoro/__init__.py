@@ -124,7 +124,7 @@ class Florodoro(QWidget):
 
         for device in audio_devices:
             device_name = device.deviceName()
-            self.device_action = QAction(f"&{device_name}", self, checkable=True, checked=not self.DEBUG, triggered=functools.partial(self.setAudioDevice, device))
+            self.device_action = QAction(f"&{device_name}", self, checkable=True, checked=not self.DEBUG, triggered=partial(self.setAudioDevice, device))
             # Create callback of some sort for clicking on the device in the menu
             self.audio_device_menu.addAction(self.device_action)
 
