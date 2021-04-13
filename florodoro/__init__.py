@@ -113,6 +113,21 @@ class Florodoro(QWidget):
 
         self.notify_menu.addAction(self.sound_action)
 
+        # Default audio device
+        self.audio_device = QAudioDeviceInfo.defaultInputDevice()
+
+        # Create device menu
+        self.audio_device_menu = self.notify_menu.addMenu("&Audio Devices")
+
+        # For all sound devices, add a device check box to the device menu
+        audio_devices = QAudioDeviceInfo.availableDevices(QAudio.AudioOutput)
+
+        for device in audio_devices:
+            device_name = device.deviceName()
+            self.device_action = QAction(f"&{device_name}", self, checkable=True, checked=not self.DEBUG, triggered=functools.partial(self.setAudioDevice, device))
+            # Create callback of some sort for clicking on the device in the menu
+            self.audio_device_menu.addAction(self.device_action)
+
         self.volume_slider = QSlider(Qt.Horizontal, minimum=0, maximum=100, value=85)
         slider_action = QWidgetAction(self)
         slider_action.setDefaultWidget(SpacedQWidget(self.volume_slider))
@@ -586,6 +601,8 @@ class Florodoro(QWidget):
         self.statistics.move()  # move to the last plant
         self.statistics.refresh()
 
+    def setAudioDevice(self, device):
+        self.audio_device = device
 
 def run():
     app = QApplication(sys.argv)
