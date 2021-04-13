@@ -9,7 +9,7 @@ import qtawesome
 import yaml
 from PyQt5.QtCore import QTimer, QTime, Qt, QDir, QUrl
 from PyQt5.QtGui import QIcon, QKeyEvent
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer, QAudioDeviceInfo
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSpinBox, QAction, QSizePolicy, \
     QMessageBox, QMenuBar, QStackedLayout, QSlider, QWidgetAction
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
