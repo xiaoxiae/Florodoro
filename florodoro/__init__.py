@@ -39,6 +39,11 @@ class Florodoro(QWidget):
     def __init__(self):
         super().__init__()
 
+        # Wipe timeplace on open.
+        #f = open("timeplace.txt", "w")
+        #f.write("")
+        #f.close()
+
         arguments = self.parseArguments()
 
         self.DEBUG = arguments.debug
@@ -383,7 +388,8 @@ class Florodoro(QWidget):
 
         # the total time to study for (spinboxes are minutes)
         # since it's rounded down and it looks better to start at the exact time, 0.99 is added
-        if line == '0' or line == '':
+
+        if line == '0' or line == '' or line == '-0':
             self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
             self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
 
@@ -397,11 +403,11 @@ class Florodoro(QWidget):
 
                 MsgBox = QMessageBox.question(self,"Unfinished Study Session", f"{'You still have '}{line}{' left in your study session do you want to continue where you left off?'}", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
+                time = line.split(":")
                 if MsgBox == QMessageBox.Yes:
                     #self.total_cycles = total_c
                     #self.remaining_cycles = remaining_c
 
-                    time = line.split(':')
                     if len(time) == 3:
                         total2 = int(time[0]) * 3600
                         total2 += int(time[1]) * 60
@@ -419,6 +425,9 @@ class Florodoro(QWidget):
                     self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
 
                 else:
+                    f = open("timeplace.txt", "w")
+                    f.write("")
+                    f.close()
                     self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
                     self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
 
@@ -497,7 +506,7 @@ class Florodoro(QWidget):
         else:
             result += str(hours) + QTime(0, minutes, seconds).toString(":mm:ss")
 
-        if time < 0:
+        if time <= 0:
             f.write('0')
 
         else:
