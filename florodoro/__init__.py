@@ -80,7 +80,7 @@ class Florodoro(QWidget):
         self.WIDGET_SPACING = 10
 
         self.MAX_TIME = 180
-        self.STEP = 5
+        self.STEP = 1
 
         self.INITIAL_TEXT = "Start!"
 
