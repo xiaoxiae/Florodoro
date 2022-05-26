@@ -20,13 +20,13 @@ If you'd like to always have the latest (unstable) version, install from TestPyP
 	- **Notify** – notification options (sound/pop-ups)
 	- **Plants** – plant settings (which ones to grow)
 	- **Overstudy** – enables doing a break earlier/later than specified, allowing for more "organic" study sessions
-- **Statistics** – shows statistics regarding time studied; includes an interactive gallery of previously grown plants
+- **Statistics** – shows statistics regarding time studied; includes an interactive gallery of the grown plants
 - **About** – a small TLDR about the project
 
 ### Bottom bar
-- **Study for: <>** – how long to study for
-- **Break for: <>** – how long to break after study
-- **Icon: Cycles: <>** – how many times to repeat study-break
+- **Study for ...** – how long to study for
+- **Break for ...** – how long to break after study
+- **Icon: Cycles ...** – how many times to repeat study-break
 - **Icon: Book** – start the study session
 - **Icon: Coffee** – start a break
 - **Icon: Pause/continue** – pause/continue an ongoing study/break
