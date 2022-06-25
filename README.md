@@ -7,10 +7,17 @@ A pomodoro timer that grows procedurally generated trees and flowers while you'r
 ![](https://raw.githubusercontent.com/xiaoxiae/Florodoro/master/florodoro/images/preview.svg)
 
 ## Running Florodoro
-First, install the app by running `pip install florodoro`.
+First, install the app by running
+```
+pip install florodoro
+```
+
 To launch the application, simply run the `florodoro` command from a terminal of your choice.
 
-If you'd like to use the latest (unstable) version, install from TestPyPI using `pip install -i https://test.pypi.org/simple/ florodoro`
+If you'd like to use the latest (unstable) version, install from TestPyPI using
+```
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple florodoro
+```
 
 ## Controls
 
@@ -44,6 +51,9 @@ If you'd like to use the latest (unstable) version, install from TestPyPI using 
 
 _Note: this might not work when the path to the cloned reposity contains whitespace. I didn't look into the reason why (likely a bug in `venv`), just something to try if something fails._
 
-### Publish
-All tagged commits are automatically published on PyPi using GitGub Actions.
-If the commit is on the `testing` branch, the test PyPi instance is used, otherwise the main one is.
+### Publishing
+All tagged commits in the `x.y.z` format are automatically published on PyPi using GitGub Actions.
+If the commit is on the `testing` branch, the test PyPi instance is used.
+
+The project follows [Semver](https://semver.org/) for version numbers and is currently under MAJOR version `0` (under rapid prototyping).
+For as long as this is the case, the master branch will only contain MINOR versions, while the testing branch will contain PATCH versions.
