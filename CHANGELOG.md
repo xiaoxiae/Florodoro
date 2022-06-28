@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Set plant age to max when swapping to another one
 - Enable breaking earlier when not overstudying
+- Break now overstudies too
 - Fix pauses and studies sometimes not being saved correctly
 
 
