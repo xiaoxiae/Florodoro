@@ -26,14 +26,14 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
 - **Options**
 	- **Notify** – notification options (sound/pop-ups)
 	- **Plants** – plant settings (which ones to grow)
-	- **Overstudy** – enables doing a break earlier/later than specified, allowing for more "organic" study sessions
-- **Statistics** – shows statistics regarding time studied; includes an interactive gallery of the grown plants
+	- **Overstudy** – enables breaks and studies longer than set
+- **Statistics** – shows statistics + an interactive plant gallery
 - **About** – a small TLDR about the project
 
 ### Bottom bar
 - **Study for ...** – how long to study for
 - **Break for ...** – how long to break after study
-- **Icon: Cycles ...** – how many times to repeat study-break
+- **Cycles: ...** – how many times to repeat study-break (0 means infinite)
 - **Icon: Book** – start the study session
 - **Icon: Coffee** – start a break
 - **Icon: Pause/continue** – pause/continue an ongoing study/break
@@ -44,8 +44,8 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
 ### Setup
 1. create virtual environment: `python3 -m venv venv`
 2. activate it `. venv/bin/activate` (assuming you use Bash)
-3. install the package locally: `python3 -m pip install --editable .`
-	- the `--editable` flag ensures local changes are used when running the package
+3. install the package locally: `python3 -m pip install -e .`
+	- the `-e` flag ensures local changes are used when running the package
 4. develop
 5. run `florodoro` (make sure that `venv` is active)
 
