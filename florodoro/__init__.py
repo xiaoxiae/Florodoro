@@ -202,9 +202,11 @@ class Florodoro(QWidget):
                                            singleStep=self.STEP,
                                            styleSheet=f'color:{self.BREAK_COLOR};')
 
-        self.cycles_spinbox = QSpinBox(self, prefix="Cycles: ", minimum=1, value=1)
+        self.cycles_spinbox = QSpinBox(self, prefix="Cycles: ", minimum=0, value=1)
+        self.cycles_spinbox.setSpecialValueText("Cycles: infinite")
 
         # keep track of remaining number of cycles and the starting number of cycles
+        # this is separate from the cycles spinbox because it can change during the session
         self.remaining_cycles = 0
         self.total_cycles = 0
 
@@ -212,7 +214,7 @@ class Florodoro(QWidget):
         self.is_study_ongoing = False
 
         # whether we notified the user already during overstudy
-        self.already_notified_during_overstudy = False
+        self.already_notified = False
 
         stacked_layout = QStackedLayout(self, stackingMode=QStackedLayout.StackAll)
         stacked_layout.addWidget(self.main_label)
@@ -313,11 +315,14 @@ class Florodoro(QWidget):
 
     def start_break(self):
         """Starts the break, instead of the study."""
-        # if we're overstudying, this can be pressed when studying, so save that we did so
         if self.is_study_ongoing:
-            self.save_study(ignore_remainder=False)
+            self.save_study()
 
         self.start(do_break=True)
+
+    def infinite_cycles(self) -> bool:
+        """Return True if we're doing an infinite number of cycles."""
+        return self.cycles_spinbox.value() == 0
 
     def start(self, do_break=False):
         """The function for starting either the study or break timer (depending on do_break)."""
@@ -328,24 +333,28 @@ class Florodoro(QWidget):
         self.pause_button.setDisabled(False)
         self.pause_button.setIcon(self.PAUSE_ICON)
 
-        # if we're initially starting to do cycles, reset their count
-        # don't reset on break, because we could be doing a standalone break
-        if self.remaining_cycles == 0 and not do_break:
-            self.remaining_cycles = self.cycles_spinbox.value()
-            self.total_cycles = self.remaining_cycles
-        else:
-            # if we're not studing and are about to when there is still leftover time, we're ending the break quicker than intended
-            # therefore, reduce cycles by 1, since they would have been if the timer were to run out during break
-            if not self.is_study_ongoing and not do_break and self.get_leftover_time() / self.total_time > 0:
+        if not do_break:
+            # if we're initially starting to do cycles, reset their count
+            # don't reset on break, because we could be doing a standalone break
+            if self.remaining_cycles == 0:
+                self.remaining_cycles = self.cycles_spinbox.value()
+                self.total_cycles = self.remaining_cycles
+
+                # when we're doing infinite cycles, the remaining cycles are negative
+                # this is to determine when the infinite cycle started
+                if self.remaining_cycles == 0:
+                    self.remaining_cycles -= 1
+
+            elif not self.is_study_ongoing:
                 self.remaining_cycles -= 1
 
-                if self.remaining_cycles == 0:
+                if self.remaining_cycles == 0 and not self.infinite_cycles():
                     self.reset()
                     return
 
         # set depending on whether we are currently studying or not
         self.is_study_ongoing = not do_break
-        self.already_notified_during_overstudy = False
+        self.already_notified = False
 
         self.main_label.setStyleSheet('' if not do_break else f'color:{self.BREAK_COLOR};')
 
@@ -445,12 +454,16 @@ class Florodoro(QWidget):
         notification.notify(self.APP_NAME, message, self.APP_NAME, os.path.abspath(self.IMAGE_FOLDER + "icon.svg"))
 
     def update_cycles_label(self):
-        """Update the cycles label, if we're currently studying and it wouldn't be 1/1."""
+        """Update the cycles label, if we're currently studying and it wouldn't be 1/1.
+        If there are 0 total cycles, we're assuming infinity."""
         if self.total_cycles != 1 and self.is_study_ongoing:
-            self.cycle_label.setText(f"{self.total_cycles - self.remaining_cycles + 1}/{self.total_cycles}")
+            if self.total_cycles == 0:
+                self.cycle_label.setText(f"{- self.remaining_cycles}/∞")
+            else:
+                self.cycle_label.setText(f"{self.total_cycles - self.remaining_cycles + 1}/{self.total_cycles}")
 
     def get_leftover_time(self):
-        """Return time until the timer runs out."""
+        """Return time until the timer runs out (in seconds). Can be negative!"""
         return (self.ending_time - datetime.now()).total_seconds()
 
     def decrease_remaining_time(self):
@@ -463,17 +476,17 @@ class Florodoro(QWidget):
         if self.get_leftover_time() <= 0:
             if self.is_study_ongoing:
                 # only notify once per study, since this would be called all the time during overstudy
-                if not self.already_notified_during_overstudy:
+                if not self.already_notified:
                     if self.sound_action.isChecked():
                         self.play_sound("study_done")
 
                     if self.popup_action.isChecked():
                         self.show_notification("Studying finished, take a break!")
 
-                    self.already_notified_during_overstudy = True
+                    self.already_notified = True
 
                 if not self.overstudy_action.isChecked():
-                    self.save_study()  # save before break!
+                    self.save_study()
                     self.start_break()
             else:
                 self.history.add_break(datetime.now(), self.total_time // 60)
@@ -485,8 +498,8 @@ class Florodoro(QWidget):
                 if self.popup_action.isChecked():
                     self.show_notification("Break is over!")
 
-                self.remaining_cycles -= 1
-                if self.remaining_cycles <= 0:  # <=, because we could have just started a simple break
+                # <=, because we could have just started a simple break
+                if self.total_cycles != 0 and self.remaining_cycles <= 0:
                     self.reset()
                 else:
                     self.start()
@@ -500,20 +513,16 @@ class Florodoro(QWidget):
             self.canvas.update()
 
     def duration(self):
-        """Get the current duration of whatever is currently going on."""
+        """Get the current duration of whatever is currently going on (in minutes)."""
         return (self.total_time - self.get_leftover_time()) / 60
 
-    def save_study(self, ignore_remainder=True):
-        """Save the record of the current study to the history file. By default, ignore the leftover time, since it
+    def save_study(self):
+        """Save the record of the current study to the history file.
+        By default, ignore the rounding time, since it
         will be a tiny number."""
         date = datetime.now()
 
-        d = self.duration()
-
-        if ignore_remainder:
-            d = float(int(d))
-
-        self.history.add_study(date, d, self.plant)
+        self.history.add_study(date, self.duration(), self.plant)
 
         self.statistics.move()  # move to the last plant
         self.statistics.refresh()
