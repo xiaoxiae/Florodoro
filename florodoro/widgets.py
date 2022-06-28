@@ -207,6 +207,8 @@ class Statistics(QWidget):
         latest one."""
         studies = self.history.get_studies()
 
+        self.age_slider.setValue(self.age_slider.maximum())
+
         # if there are no plants to display, don't do anything
         if len(studies) == 0:
             return
