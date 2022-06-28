@@ -314,7 +314,7 @@ class Florodoro(QWidget):
     def start_break(self):
         """Starts the break, instead of the study."""
         # if we're overstudying, this can be pressed when studying, so save that we did so
-        if self.overstudy_action.isChecked() and self.is_study_ongoing:
+        if self.is_study_ongoing:
             self.save_study(ignore_remainder=False)
 
         self.start(do_break=True)
@@ -322,7 +322,7 @@ class Florodoro(QWidget):
     def start(self, do_break=False):
         """The function for starting either the study or break timer (depending on do_break)."""
         self.study_button.setEnabled(do_break)
-        self.break_button.setEnabled(self.overstudy_action.isChecked() and not do_break)
+        self.break_button.setEnabled(not do_break)
         self.reset_button.setDisabled(False)
 
         self.pause_button.setDisabled(False)
