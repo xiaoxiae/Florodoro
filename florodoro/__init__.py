@@ -189,9 +189,14 @@ class Florodoro(QWidget):
 
         font.setPointSize(26)
         self.cycle_label = QLabel(self)
-        self.cycle_label.setAlignment(Qt.AlignTop)
+        self.cycle_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.cycle_label.setMargin(20)
         self.cycle_label.setFont(font)
+
+        self.status_label = QLabel(self)
+        self.status_label.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        self.status_label.setMargin(20)
+        self.status_label.setFont(font)
 
         main_horizontal_layout = QHBoxLayout(self)
 
@@ -220,6 +225,7 @@ class Florodoro(QWidget):
         stacked_layout = QStackedLayout(self, stackingMode=QStackedLayout.StackAll)
         stacked_layout.addWidget(self.main_label)
         stacked_layout.addWidget(self.cycle_label)
+        stacked_layout.addWidget(self.status_label)
         stacked_layout.addWidget(self.canvas)
 
         main_vertical_layout.addLayout(stacked_layout)
@@ -362,10 +368,6 @@ class Florodoro(QWidget):
         self.total_time = (self.study_time_spinbox if not do_break else self.break_time_spinbox).value() * 60 + 0.99
         self.ending_time = datetime.now() + timedelta(minutes=self.total_time / 60)
 
-        # so it's displayed immediately
-        self.update_time_label(self.total_time)
-        self.update_cycles_label()
-
         # don't start showing canvas and growing the plant when we're not studying
         if not do_break:
             possible_plants = [plant for i, plant in enumerate(self.PLANTS) if self.plant_checkboxes[i].isChecked()]
@@ -380,9 +382,15 @@ class Florodoro(QWidget):
         self.study_timer.stop()  # it could be running - we could be currently in a break
         self.study_timer.start()
 
+        # so it's displayed immediately
+        self.update_time_label(self.total_time)
+        self.update_cycles_label()
+        self.update_status_label()
+
     def toggle_pause(self):
-        """Called when the pause button is pressed. Either stops the timer or starts it again, while also doing stuff
-        to the pause icons."""
+        """Called when the pause button is pressed.
+        Either stops the timer or starts it again, while also doing stuff to the pause icons."""
+
         # stop the timer, if it's running
         if self.study_timer.isActive():
             self.study_timer.stop()
@@ -394,6 +402,8 @@ class Florodoro(QWidget):
             self.ending_time += datetime.now() - self.pause_time
             self.study_timer.start()
             self.pause_button.setIcon(self.PAUSE_ICON)
+
+        self.update_status_label()
 
     def save(self):
         """Save a study or break, whichever is currently running."""
@@ -421,6 +431,7 @@ class Florodoro(QWidget):
 
         self.main_label.setText(self.INITIAL_TEXT)
         self.cycle_label.setText('')
+        self.status_label.setText('')
 
     def update_time_label(self, time):
         """Update the text of the time label, given some time in seconds."""
@@ -468,6 +479,20 @@ class Florodoro(QWidget):
                 self.cycle_label.setText(f"{- self.remaining_cycles}/∞")
             else:
                 self.cycle_label.setText(f"{self.total_cycles - self.remaining_cycles + 1}/{self.total_cycles}")
+
+    def update_status_label(self):
+        """Says Studying / Paused / Breaking, depending on what's going on."""
+        if self.is_study_ongoing:
+            self.status_label.setText('Studying')
+
+            if not self.study_timer.isActive():
+                self.status_label.setText('Paused (studying)')
+
+        elif self.is_break_ongoing:
+            self.status_label.setText('Breaking')
+
+            if not self.study_timer.isActive():
+                self.status_label.setText('Paused (breaking)')
 
     def get_leftover_time(self):
         """Return time until the timer runs out (in seconds). Can be negative!"""
