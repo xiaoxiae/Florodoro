@@ -83,6 +83,7 @@ class Statistics(QWidget):
 
         text_color = self.palette().text().color()
 
+        # a hack to get float (we're gonna be dividing by the maximum)
         self.age_slider = QSlider(Qt.Horizontal, minimum=0, maximum=1000, value=1000,
                                   valueChanged=self.slider_value_changed)
 
