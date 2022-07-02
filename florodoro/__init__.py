@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QPushButton, QSp
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 from plyer import notification
 
+from florodoro.version import __version__
 from florodoro.history import History
 from florodoro.plants import GreenTree, DoubleGreenTree, OrangeTree, CircularFlower
 from florodoro.widgets import Canvas, Statistics, SpacedQWidget
@@ -32,7 +33,14 @@ class Florodoro(QWidget):
             "-d",
             "--debug",
             action="store_true",
-            help="run the app in debug mode",
+            help="start Florodoro in debug mode",
+        )
+
+        parser.add_argument(
+            "-v",
+            "--version",
+            action="store_true",
+            help="print current version",
         )
 
         return parser.parse_args()
@@ -41,6 +49,10 @@ class Florodoro(QWidget):
         super().__init__()
 
         arguments = self.parseArguments()
+
+        if arguments.version:
+            print(__version__)
+            quit()
 
         self.DEBUG = arguments.debug
 
@@ -135,6 +147,7 @@ class Florodoro(QWidget):
                 triggered=lambda: QMessageBox.information(
                     self,
                     "About",
+                    f"<h3>Florodoro v{__version__}</h3>"
                     "This application was created by Tomáš Sláma. It is heavily inspired by the Android app Forest, "
                     "but with all of the plants generated procedurally. It's <a href='https://github.com/xiaoxiae/Florodoro'>open source</a> and licensed "
                     "under MIT, so do as you please with the code and anything else related to the project.",

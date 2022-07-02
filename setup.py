@@ -1,17 +1,24 @@
 from setuptools import setup
 from os import path
+from re import search
 
 script_location = path.abspath(path.dirname(__file__))
 
+# get required packages from requirements.txt
 with open("requirements.txt") as f:
     requirements = f.read().splitlines()
 
+# get long description from README
 with open(path.join(script_location, "README.md"), "r") as f:
     long_description = f.read()
 
+# get version
+with open("florodoro/version.py") as f:
+    exec(f.read())
+
 setup(
     name="florodoro",
-    version="0.7.2",
+    version=__version__,
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="education pyqt5 plants pomodoro",
@@ -28,7 +35,7 @@ setup(
     packages=["florodoro"],
     include_package_data = True,
     package_data = {'florodoro': ["sounds/*", "images/*"]},
-    data_files=[("", ["LICENSE", "README.md"])],
+    data_files=[("", ["LICENSE", "README.md", "requirements.txt", "CHANGELOG.md"])],
 
     entry_points={'console_scripts': ['florodoro=florodoro.__init__:run']},
 
