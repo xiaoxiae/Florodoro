@@ -11,7 +11,7 @@ with open(path.join(script_location, "README.md"), "r") as f:
 
 setup(
     name="florodoro",
-    version="0.7.1",
+    version="0.7.2",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="education pyqt5 plants pomodoro",
