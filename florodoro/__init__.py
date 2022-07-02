@@ -437,7 +437,8 @@ class Florodoro(QWidget):
         """Update the text of the time label, given some time in seconds."""
         sign = -1 if time < 0 else 1
 
-        time = abs(time)
+        # done to immediately display -1 when time goes negative
+        time = abs(time) + (1 if sign == -1 else 0)
 
         hours = int(time // 3600)
         minutes = int((time // 60) % 60)
