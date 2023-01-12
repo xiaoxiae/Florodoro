@@ -37,12 +37,12 @@ class History:
                 self.history[activity] = []
 
     def add_break(self, date, duration: float):
-        """Add a break to the history."""
+        """Add a break to the history. The date is the ENDING time."""
         self.history["breaks"].append({"date": date, "duration": duration})
         self.save()
 
     def add_study(self, date, duration: float, plant: Plant):
-        """Add a break to the history."""
+        """Add a break to the history. The date is the ENDING time."""
         self.history["studies"].append({
             "date": date,
             "duration": duration,

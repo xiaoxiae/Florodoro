@@ -11,8 +11,8 @@ from florodoro.utilities import smoothen_curve
 
 
 class Drawable(ABC):
-    """Something that has a draw function that takes a painter to be painted. Also contains some convenience methods
-    for drawing the thing and saving it to an SVG."""
+    """Something that has a draw function that takes a painter to be painted.
+    Also contains some convenience methods for drawing the thing and saving it to an SVG."""
 
     @abstractmethod
     def draw(self, painter: QPainter, width: int, height: int):

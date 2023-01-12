@@ -83,6 +83,7 @@ class Statistics(QWidget):
 
         text_color = self.palette().text().color()
 
+        # a hack to get float (we're gonna be dividing by the maximum)
         self.age_slider = QSlider(Qt.Horizontal, minimum=0, maximum=1000, value=1000,
                                   valueChanged=self.slider_value_changed)
 
@@ -205,6 +206,8 @@ class Statistics(QWidget):
         """Move to the left/right plant by delta. If no plant is currently being displayed or delta is 0, pick the
         latest one."""
         studies = self.history.get_studies()
+
+        self.age_slider.setValue(self.age_slider.maximum())
 
         # if there are no plants to display, don't do anything
         if len(studies) == 0:
