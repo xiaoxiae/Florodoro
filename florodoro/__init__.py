@@ -150,7 +150,7 @@ class Florodoro(QWidget):
                     f"<h3>Florodoro v{__version__}</h3>"
                     "This application was created by Tomáš Sláma. It is heavily inspired by the Android app Forest, "
                     "but with all of the plants generated procedurally. It's <a href='https://github.com/xiaoxiae/Florodoro'>open source</a> and licensed "
-                    "under MIT, so do as you please with the code and anything else related to the project.",
+                    "under GPLv3.",
                 ),
             )
         )
