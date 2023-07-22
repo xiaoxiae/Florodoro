@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
+## [0.8.1] - 2023-07-22
+
+### Changed
+- Fix crashes when the ~/.florodoro directory doesn't exist
+
+
 ## [0.8] - 2023-01-12
 
 ### Added

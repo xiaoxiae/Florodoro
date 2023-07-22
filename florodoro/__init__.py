@@ -65,6 +65,7 @@ class Florodoro(QWidget):
         self.setMinimumHeight(self.MIN_HEIGHT)
 
         self.ROOT_FOLDER = os.path.expanduser("~/.florodoro/")
+        os.makedirs(self.ROOT_FOLDER, exist_ok=True)
 
         self.HISTORY_FILE_PATH = self.ROOT_FOLDER + "history" + ("" if not self.DEBUG else "-debug") + ".yaml"
         self.CONFIGURATION_FILE_PATH = self.ROOT_FOLDER + "config" + ("" if not self.DEBUG else "-debug") + ".yaml"
@@ -311,9 +312,6 @@ class Florodoro(QWidget):
 
     def save_settings(self):
         """Saves the settings file (if it exists)."""
-        if not os.path.exists(self.ROOT_FOLDER):
-            os.mkdir(self.ROOT_FOLDER)
-
         with open(self.CONFIGURATION_FILE_PATH, 'w') as file:
             configuration = {}
 
